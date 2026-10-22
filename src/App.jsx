@@ -1,58 +1,2689 @@
-import React,{useMemo,useState}from"react";
-import{Activity,AlertCircle,ArrowLeft,ArrowRight,Bell,BookOpen,Bot,Check,CheckCircle2,ChevronDown,ChevronLeft,ChevronRight,CircleHelp,Database,Ellipsis,FileText,Filter,Globe,LayoutDashboard,Menu,Pencil,Plug,Plus,RefreshCw,Search,Server,Settings,ShieldCheck,Users,Wrench,X,Zap}from"lucide-react";
-const seed=[
-{_id:"mcp-001",mcpId:"mcp-autocount",name:"AutoCount MCP",description:"AutoCount MCP integration.",version:1,clientId:"client-123",client:"iTrade",status:"active",transport:"streamableHttp",url:"https://example.com/mcp",authType:"oauth2",credentialReference:"secret-autocount-prod",createdAt:"Oct 08, 2026 10:00 AM",updatedAt:"Oct 08, 2026 10:05 AM",tools:[{name:"getCustomer",description:"Retrieve customer details from AutoCount.",enabled:true,configSchema:{type:"object",properties:{includeInactive:{type:"boolean"},maxResults:{type:"number"}}},config:{includeInactive:false,maxResults:100}},{name:"getProduct",description:"Retrieve product details from AutoCount.",enabled:true,configSchema:{type:"object",properties:{includeInactive:{type:"boolean"},maxResults:{type:"number"}}},config:{includeInactive:false,maxResults:100}}]},
-{_id:"mcp-002",mcpId:"mcp-salesforce",name:"Salesforce MCP",description:"Salesforce CRM integration.",version:1,clientId:"client-456",client:"Client ABC",status:"active",transport:"streamableHttp",url:"https://salesforce.example.com/mcp",authType:"oauth2",credentialReference:"secret-salesforce-prod",createdAt:"Oct 07, 2026",updatedAt:"Oct 07, 2026",tools:[{name:"searchAccounts",description:"Search Salesforce accounts.",enabled:true,configSchema:{type:"object",properties:{maxResults:{type:"number"}}},config:{maxResults:50}},{name:"createLead",description:"Create a lead.",enabled:false,configSchema:{type:"object",properties:{notifyOwner:{type:"boolean"}}},config:{notifyOwner:true}}]},
-{_id:"mcp-003",mcpId:"mcp-github",name:"GitHub MCP",description:"GitHub repository and issue integration.",version:2,clientId:"client-001",client:"iNextLabs",status:"inactive",transport:"sse",url:"https://github.example.com/sse",authType:"apiKey",credentialReference:"secret-github-token",createdAt:"Oct 02, 2026",updatedAt:"Oct 06, 2026",tools:[{name:"searchRepositories",description:"Search repositories.",enabled:true,configSchema:{type:"object",properties:{maxResults:{type:"number"}}},config:{maxResults:30}},{name:"getIssue",description:"Fetch issue information.",enabled:false,configSchema:{type:"object",properties:{includeComments:{type:"boolean"}}},config:{includeComments:true}}]},
-{_id:"mcp-004",mcpId:"mcp-slack",name:"Slack MCP",description:"Slack workspace messaging integration.",version:1,clientId:"client-001",client:"iNextLabs",status:"active",transport:"streamableHttp",url:"https://slack.example.com/mcp",authType:"oauth2",credentialReference:"secret-slack-prod",createdAt:"Sep 29, 2026",updatedAt:"Oct 01, 2026",tools:[{name:"searchMessages",description:"Search workspace messages.",enabled:true,configSchema:{type:"object",properties:{maxResults:{type:"number"},includeArchived:{type:"boolean"}}},config:{maxResults:100,includeArchived:false}},{name:"sendMessage",description:"Send a channel message.",enabled:true,configSchema:{type:"object",properties:{requireApproval:{type:"boolean"}}},config:{requireApproval:true}}]}
+import React, { useMemo, useState } from "react";
+import {
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  Bell,
+  Bot,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  CircleHelp,
+  Database,
+  Ellipsis,
+  Eye,
+  FileText,
+  Filter,
+  Globe,
+  Info as InfoIcon,
+  LayoutDashboard,
+  Link2,
+  Menu,
+  Pencil,
+  Plug,
+  Plus,
+  Power,
+  RefreshCw,
+  Search,
+  Server,
+  Settings,
+  ShieldCheck,
+  Tag,
+  Trash2,
+  Users,
+  Wrench,
+  X,
+  Zap,
+} from "lucide-react";
+
+// 8. platformDb.mcpServer
+const seedServers = [
+  {
+    _id: "mcp-001",
+    mcpId: "mcp-autocount",
+    name: "AutoCount MCP",
+    description: "MCP server for AutoCount integration.",
+    version: 1,
+    scope: { type: "client", clientId: "client-123" },
+    status: "active",
+    connection: { transport: "streamableHttp", url: "https://example.com/mcp" },
+    authentication: { type: "oauth2", credentialReference: "secret-autocount-prod" },
+    lastDiscoveredAt: "Oct 13, 2026 · 09:00 AM",
+    createdAt: "Oct 08, 2026 · 10:00 AM",
+    updatedAt: "Oct 13, 2026 · 09:00 AM",
+  },
+  {
+    _id: "mcp-002",
+    mcpId: "mcp-salesforce",
+    name: "Salesforce MCP",
+    description: "Salesforce CRM integration.",
+    version: 1,
+    scope: { type: "client", clientId: "client-456" },
+    status: "active",
+    connection: { transport: "streamableHttp", url: "https://salesforce.example.com/mcp" },
+    authentication: { type: "oauth2", credentialReference: "secret-salesforce-prod" },
+    lastDiscoveredAt: "Oct 12, 2026 · 02:30 PM",
+    createdAt: "Oct 07, 2026 · 10:00 AM",
+    updatedAt: "Oct 12, 2026 · 02:30 PM",
+  },
+  {
+    _id: "mcp-003",
+    mcpId: "mcp-github",
+    name: "GitHub MCP",
+    description: "GitHub repository and issue integration.",
+    version: 2,
+    scope: { type: "platform" },
+    status: "inactive",
+    connection: { transport: "sse", url: "https://github.example.com/sse" },
+    authentication: { type: "apiKey", credentialReference: "secret-github-token" },
+    lastDiscoveredAt: "Oct 10, 2026 · 11:00 AM",
+    createdAt: "Oct 02, 2026 · 08:00 AM",
+    updatedAt: "Oct 10, 2026 · 11:00 AM",
+  },
+  {
+    _id: "mcp-004",
+    mcpId: "mcp-slack",
+    name: "Slack MCP",
+    description: "Slack workspace messaging integration.",
+    version: 1,
+    scope: { type: "client", clientId: "client-001" },
+    status: "active",
+    connection: { transport: "streamableHttp", url: "https://slack.example.com/mcp" },
+    authentication: { type: "oauth2", credentialReference: "secret-slack-prod" },
+    lastDiscoveredAt: "Oct 14, 2026 · 08:00 AM",
+    createdAt: "Sep 29, 2026 · 11:00 AM",
+    updatedAt: "Oct 14, 2026 · 08:00 AM",
+  },
 ];
-const blank=()=>({name:"",mcpId:"",description:"",clientId:"client-123",status:"active",transport:"streamableHttp",url:"https://example.com/mcp",authType:"oauth2",credentialReference:"",version:"1",tools:[{name:"getCustomer",description:"Retrieve customer details.",enabled:true,configSchema:{type:"object",properties:{includeInactive:{type:"boolean"},maxResults:{type:"number"}}},config:{includeInactive:false,maxResults:100}},{name:"getProduct",description:"Retrieve product details.",enabled:true,configSchema:{type:"object",properties:{includeInactive:{type:"boolean"},maxResults:{type:"number"}}},config:{includeInactive:false,maxResults:100}}]});
-const clients={"client-123":"iTrade","client-001":"iNextLabs","client-456":"Client ABC"};
-const pretty=v=>({active:"Active",inactive:"Inactive",streamableHttp:"Streamable HTTP",sse:"SSE",stdio:"STDIO",oauth2:"OAuth 2.0",apiKey:"API Key",bearerToken:"Bearer Token",none:"None"}[v]||v);
-function Badge({children,tone="neutral"}){return <span className={"badge badge-"+tone}>{children}</span>}
-function Field({label,children,hint,required}){return <label className="field"><span>{label}{required&&<b className="req"> *</b>}</span>{children}{hint&&<small>{hint}</small>}</label>}
-function Toggle({checked,onChange,label}){return <button type="button" aria-label={label} className={"toggle "+(checked?"on":"")} onClick={()=>onChange(!checked)}><span/></button>}
-function Status({value}){return <Badge tone={value==="active"?"success":value==="inactive"?"danger":"info"}>{pretty(value)}</Badge>}
-function Info({label,value}){return <div className="info-row"><span>{label}</span><strong>{value??"—"}</strong></div>}
-function Review({title,rows,onEdit}){return <div className="review"><div className="review-head"><b>{title}</b><button className="text-action" onClick={onEdit}><Pencil size={13}/> Edit</button></div>{rows.map(([a,b])=><Info key={a} label={a} value={b}/>)}</div>}
-export default function App(){
-const[servers,setServers]=useState(seed),[selectedId,setSelectedId]=useState("mcp-001"),[page,setPage]=useState("list"),[tab,setTab]=useState("Overview"),[search,setSearch]=useState(""),[client,setClient]=useState("all"),[status,setStatus]=useState("all"),[transport,setTransport]=useState("all"),[view,setView]=useState("cards"),[nav,setNav]=useState(false),[aiServicesOpen,setAiServicesOpen]=useState(true),[notice,setNotice]=useState(""),[form,setForm]=useState(blank()),[step,setStep]=useState(0),[editing,setEditing]=useState(false),[editId,setEditId]=useState(null),[tool,setTool]=useState(null),[toolStep,setToolStep]=useState(0),[toolSearch,setToolSearch]=useState(""),[confirm,setConfirm]=useState(false),[activity,setActivity]=useState([{id:1,time:"Oct 08, 2026 · 10:05 AM",title:"Configuration saved",detail:"Initial configuration stored."},{id:2,time:"Oct 08, 2026 · 10:00 AM",title:"MCP server registered",detail:"AutoCount MCP registered by admin-user."}]);
-const selected=servers.find(s=>s._id===selectedId)||servers[0],setF=(k,v)=>setForm(f=>({...f,[k]:v}),),filtered=useMemo(()=>servers.filter(s=>(`${s.name} ${s.mcpId} ${s.description} ${s.client}`.toLowerCase().includes(search.toLowerCase()))&&(client==="all"||s.clientId===client)&&(status==="all"||s.status===status)&&(transport==="all"||s.transport===transport)),[servers,search,client,status,transport]);
-const log=(title,detail)=>setActivity(a=>[{id:Date.now(),time:"Oct 14, 2026 · Just now",title,detail},...a]);
-const details=id=>{setSelectedId(id);setTab("Overview");setPage("details");setNotice("")};
-const create=()=>{setForm(blank());setEditing(false);setEditId(null);setStep(0);setPage("wizard");setNotice("")};
-const edit=s=>{s=s||selected;setForm({...s,version:String(s.version),tools:s.tools.map(t=>({...t,config:{...t.config},configSchema:JSON.parse(JSON.stringify(t.configSchema))}))});setEditing(true);setEditId(s._id);setStep(0);setPage("wizard");setNotice("")};
-const next=()=>{if(step===0&&(!form.name.trim()||!form.mcpId.trim()))return setNotice("MCP name and MCP ID are required.");if(step===1&&form.transport!=="stdio"&&!/^https?:\/\/.+/.test(form.url))return setNotice("Enter a valid HTTP or HTTPS URL.");if(step===1&&form.authType!=="none"&&!form.credentialReference.trim())return setNotice("Credential reference is required.");setNotice("");setStep(s=>Math.min(3,s+1))};
-const save=()=>{if(!form.name.trim()||!form.mcpId.trim()){setNotice("MCP name and MCP ID are required.");setStep(0);return}if(servers.some(s=>s.mcpId.toLowerCase()===form.mcpId.toLowerCase()&&s._id!==editId)){setNotice("MCP ID must be unique.");setStep(0);return}if(form.transport!=="stdio"&&!/^https?:\/\/.+/.test(form.url)){setNotice("Enter a valid URL.");setStep(1);return}if(form.authType!=="none"&&!form.credentialReference.trim()){setNotice("Credential reference is required.");setStep(1);return}const s={...form,_id:editId||`mcp-${Date.now()}`,version:Number(form.version)||1,client:clients[form.clientId]||"Client ABC",createdAt:editing?(servers.find(x=>x._id===editId)?.createdAt):"Oct 14, 2026 · Just now",updatedAt:"Oct 14, 2026 · Just now",tools:form.tools.map(t=>({...t,config:{...t.config}}))};setServers(old=>editing?old.map(x=>x._id===editId?s:x):[s,...old]);setSelectedId(s._id);setPage("details");setTab("Overview");setNotice(editing?"Changes saved locally.":"MCP server created in mock mode.");log(editing?"MCP configuration updated":"MCP server registered",s.name+" configuration saved in mock mode.")};
-const updateTool=(name,fn)=>setServers(old=>old.map(s=>s._id===selectedId?{...s,tools:s.tools.map(t=>t.name===name?fn(t):t)}:s));
-const openTool=t=>{setTool({...t,originalName:t.originalName??t.name,configSchema:JSON.parse(JSON.stringify(t.configSchema||{type:"object",properties:{}})),config:{...t.config}});setToolStep(0)};
-const saveTool=()=>{if(!tool.name.trim())return setNotice("Tool name is required.");const props=tool.configSchema.properties||{},cfg={};Object.entries(props).forEach(([k,v])=>cfg[k]=tool.config[k]??(v.type==="boolean"?false:v.type==="number"?0:""));const t={...tool,config:cfg};if(page==="wizard")setF("tools",form.tools.map(x=>x.name===tool.originalName?t:x));else{setServers(old=>old.map(s=>s._id===selectedId?{...s,tools:s.tools.map(x=>x.name===tool.originalName?t:x),updatedAt:"Oct 14, 2026 · Just now"}:s));log("Tool configuration updated",t.name+" was updated.")}setTool(null);setNotice("Tool saved locally.")};
-const noticeUI=notice&&<div className="notice"><span><CircleHelp size={15}/>{notice}</span><button onClick={()=>setNotice("")}><X size={14}/></button></div>;
-const tabs=["Overview","Tools Registry","Connection & Auth","Activity","Settings"],steps=["Basic Information","Connection & Authentication","Tools Configuration","Review & Create"];
-return <div className="shell"><header className="top"><button className="icon mobile" onClick={()=>setNav(!nav)}><Menu/></button><div className="brand"><Bot size={22}/></div><b className="brandname">iNextLabs</b><span className="sep"/><b className="portal">Management Portal</b><div className="topright"><button className="icon"><CircleHelp/></button><button className="icon"><Bell/></button><button className="icon"><Settings/></button><div className="avatar">MS</div><div className="profile"><b>Manoj Kumar S</b><small>Admin</small></div></div></header>
-<div className="body"><aside className={"sidebar "+(nav?"open":"")}><button className="navitem"><LayoutDashboard/><span>Dashboard</span></button><div className="navlabel">PLATFORM <ChevronDown/></div><button className="navitem"><Users/><span>Client Account</span></button><button className="navitem"><Users/><span>Client Teams</span></button><button className="navitem"><Database/><span>AI Resource Catalog</span></button><button className="navitem"><Server/><span>Infra Resources</span></button><div className="navgroup"><button className={"navitem navparent "+(aiServicesOpen?"open active":"")} onClick={()=>setAiServicesOpen(!aiServicesOpen)}><Bot/><span>AI Services</span><ChevronDown size={14} className={"caret "+(aiServicesOpen?"open":"")}/></button>{aiServicesOpen&&<div className="navsub"><button className="navitem sub selected" onClick={()=>{setPage("list");setNotice("")}}><Plug/><span>MCP Servers</span></button><button className="navitem sub"><Bot/><span>Agent Skills</span></button><button className="navitem sub"><Zap/><span>Model Registry</span></button><button className="navitem sub"><FileText/><span>Docs AI</span></button><button className="navitem sub"><Activity/><span>Insights AI</span></button></div>}</div><button className="navitem"><Activity/><span>Activity Logs</span></button><div className="sidebottom"><Settings/> Settings</div></aside>
-<main className="main"><div className="crumb">Home <ChevronRight/> AI Services <ChevronRight/> MCP Servers <ChevronRight/> <b>{page==="list"?"Registry":page==="wizard"?(editing?"Edit MCP Server":"Register MCP Server"):selected.name}</b></div>{noticeUI}
-{page==="list"&&<section className="page"><div className="pagehead"><div className="headicon"><Plug/></div><div><h1>MCP Servers</h1><p>Manage Model Context Protocol servers, tools and client integrations.</p></div><button className="btn primary push" onClick={create}><Plus/> Register MCP Server</button></div><div className="stats">{[[Server,"Total MCP Servers",servers.length,"Registered integrations","orange"],[CheckCircle2,"Active",servers.filter(s=>s.status==="active").length,"Enabled servers","green"],[AlertCircle,"Inactive",servers.filter(s=>s.status==="inactive").length,"Disabled servers","red"],[Wrench,"Total Tools",servers.reduce((n,s)=>n+s.tools.length,0),"Across all servers","blue"]].map(([I,l,v,sub,c])=><div className="stat" key={l}><div>{l}<span className={"staticon "+c}><I/></span></div><strong>{v}</strong><small>{sub}</small></div>)}</div><div className="panel"><div className="panelhead"><div><h2>MCP Server Registry</h2><p>Search, filter and configure registered MCP servers.</p></div><button className="btn subtle" onClick={()=>{setSearch("");setClient("all");setStatus("all");setTransport("all")}}><RefreshCw/> Reset filters</button></div><div className="filters"><div className="search"><Search/><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name, MCP ID or description..."/></div><select value={client} onChange={e=>setClient(e.target.value)}><option value="all">All clients</option><option value="client-123">iTrade</option><option value="client-001">iNextLabs</option><option value="client-456">Client ABC</option></select><select value={status} onChange={e=>setStatus(e.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Inactive</option></select><select value={transport} onChange={e=>setTransport(e.target.value)}><option value="all">All transports</option><option value="streamableHttp">Streamable HTTP</option><option value="sse">SSE</option><option value="stdio">STDIO</option></select><div className="view"><button className={view==="cards"?"chosen":""} onClick={()=>setView("cards")}><LayoutDashboard/></button><button className={view==="table"?"chosen":""} onClick={()=>setView("table")}><Filter/></button></div></div>
-{view==="cards"?<div className="cards">{filtered.map(s=><div className="servercard" key={s._id}><div className="serverline"><div className="servericon">{s.name.slice(0,2).toUpperCase()}</div><div className="serverlabel"><button className="link" onClick={()=>details(s._id)}>{s.name}</button><small>{s.mcpId}</small></div><Status value={s.status}/><button className="icon" onClick={()=>edit(s)}><Ellipsis/></button></div><p>{s.description}</p><div className="metadata"><span><Users/> {s.client}</span><span><Globe/> {pretty(s.transport)}</span><span><ShieldCheck/> {pretty(s.authType)}</span></div><div className="cardfoot"><span><Wrench/> {s.tools.filter(t=>t.enabled).length}/{s.tools.length} tools enabled</span><span>v{s.version}</span><button className="icon" onClick={()=>details(s._id)}><ChevronRight/></button></div></div>)}</div>:<div className="tablewrap"><table><thead><tr><th>MCP SERVER</th><th>CLIENT</th><th>TRANSPORT</th><th>AUTHENTICATION</th><th>TOOLS</th><th>STATUS</th><th>UPDATED</th><th/></tr></thead><tbody>{filtered.map(s=><tr key={s._id}><td><button className="link" onClick={()=>details(s._id)}>{s.name}</button><small className="sub">{s.mcpId}</small></td><td>{s.client}</td><td>{pretty(s.transport)}</td><td>{pretty(s.authType)}</td><td>{s.tools.filter(t=>t.enabled).length}/{s.tools.length}</td><td><Status value={s.status}/></td><td>{s.updatedAt}</td><td><button className="icon" onClick={()=>details(s._id)}><ChevronRight/></button></td></tr>)}</tbody></table></div>}{!filtered.length&&<div className="empty"><Search/><b>No MCP servers found</b><p>Try changing your search or filters.</p></div>}<div className="footnote">Showing {filtered.length} of {servers.length} MCP servers <span>Interactive prototype · Local mock data</span></div></div></section>}
-{page==="details"&&<section className="page"><div className="backline"><button onClick={()=>setPage("list")}><ArrowLeft/> All MCP Servers</button><span>/ {selected.mcpId}</span></div><div className="pagehead detailhead"><div className="servericon big">{selected.name.slice(0,2).toUpperCase()}</div><div className="grow"><h1>{selected.name}</h1><p>{selected.mcpId} · Version {selected.version} · {selected.client}</p><div className="badges"><Status value={selected.status}/><Badge tone="info">{selected.tools.length} tools</Badge></div></div><button className="btn secondary" onClick={()=>edit()}><Pencil/> Edit</button><button className="btn subtle" onClick={()=>setConfirm(true)}><Ellipsis/></button></div><div className="panel"><div className="tabs">{tabs.map(t=><button key={t} className={tab===t?"active":""} onClick={()=>setTab(t)}>{t}</button>)}</div><div className="tabbody">
-{tab==="Overview"&&<div className="overview"><div className="subpanel"><h2>Basic Information</h2><p className="muted">Identity, scope and audit metadata.</p><Info label="Name" value={selected.name}/><Info label="MCP ID" value={selected.mcpId}/><Info label="Description" value={selected.description}/><Info label="Scope type" value="Client"/><Info label="Client" value={`${selected.client} (${selected.clientId})`}/><Info label="Version" value={selected.version}/><Info label="Status" value={<Status value={selected.status}/>}/><Info label="Created at" value={selected.createdAt}/><Info label="Updated at" value={selected.updatedAt}/></div><div className="stack"><div className="subpanel"><div className="subhead"><Globe/><div><h2>Connection</h2><p className="muted">Transport and endpoint settings.</p></div></div><Info label="Transport" value={pretty(selected.transport)}/><Info label="URL" value={selected.url||"Not applicable"}/><Info label="Status" value={<Badge tone="success">Configured</Badge>}/><button className="btn secondary full" onClick={()=>{setNotice("Connection test simulated successfully. No network request was made.");log("Connection test simulated",selected.name+" connection check completed.")}}>Test Connection</button></div><div className="subpanel"><div className="subhead"><ShieldCheck/><div><h2>Authentication</h2><p className="muted">Credential references only; secrets stay hidden.</p></div></div><Info label="Type" value={pretty(selected.authType)}/><Info label="Credential reference" value={selected.credentialReference||"None"}/><Info label="Reference status" value={selected.authType==="none"?"Not required":"Configured"}/></div></div></div>}
-{tab==="Tools Registry"&&<><div className="panelhead inner"><div><h2>MCP Tools</h2><p>Enable tools and configure each tool's own parameters.</p></div><button className="btn primary" onClick={()=>{const t={name:`newTool${selected.tools.length+1}`,description:"Describe what this tool does.",enabled:true,configSchema:{type:"object",properties:{maxResults:{type:"number"}}},config:{maxResults:100},originalName:null};setTool(t);setToolStep(0)}}><Plus/> Add Tool</button></div><div className="search toolsearch"><Search/><input value={toolSearch} onChange={e=>setToolSearch(e.target.value)} placeholder="Search tools..."/></div><div className="tablewrap"><table className="tooltable"><thead><tr><th>NAME</th><th>DESCRIPTION</th><th>ENABLED</th><th>CONFIGURATION</th><th>ACTIONS</th></tr></thead><tbody>{selected.tools.filter(t=>(t.name+" "+t.description).toLowerCase().includes(toolSearch.toLowerCase())).map(t=><tr key={t.name}><td><b>{t.name}</b><small className="sub">{Object.keys(t.configSchema.properties||{}).length} configuration fields</small></td><td>{t.description}</td><td><Toggle checked={t.enabled} onChange={v=>updateTool(t.name,x=>({...x,enabled:v}))} label={t.name}/></td><td><div className="chips">{Object.entries(t.config||{}).map(([k,v])=><span key={k}>{k}: <b>{String(v)}</b></span>)}</div></td><td><button className="btn secondary small" onClick={()=>setTool({...t,originalName:t.name,configSchema:JSON.parse(JSON.stringify(t.configSchema)),config:{...t.config}})}>Configure</button><button className="icon" onClick={()=>{setServers(old=>old.map(s=>s._id===selectedId?{...s,tools:s.tools.filter(x=>x.name!==t.name)}:s));setNotice(t.name+" removed from mock server.")}}><Ellipsis/></button></td></tr>)}</tbody></table></div></>}
-{tab==="Connection & Auth"&&<div className="formpanel"><h2>Connection & Authentication</h2><p className="muted">Manage endpoint and credential references for this server.</p><Field label="Transport"><select value={selected.transport} onChange={e=>setServers(old=>old.map(s=>s._id===selectedId?{...s,transport:e.target.value}:s))}><option value="streamableHttp">Streamable HTTP</option><option value="sse">Server-Sent Events (SSE)</option><option value="stdio">STDIO</option></select></Field>{selected.transport!=="stdio"&&<Field label="Connection URL"><input value={selected.url} onChange={e=>setServers(old=>old.map(s=>s._id===selectedId?{...s,url:e.target.value}:s))}/></Field>}<Field label="Authentication type"><select value={selected.authType} onChange={e=>setServers(old=>old.map(s=>s._id===selectedId?{...s,authType:e.target.value,credentialReference:e.target.value==="none"?"":s.credentialReference}:s))}><option value="oauth2">OAuth 2.0</option><option value="apiKey">API Key</option><option value="bearerToken">Bearer Token</option><option value="none">None</option></select></Field>{selected.authType!=="none"&&<Field label="Credential reference" hint="Enter a secret reference, never the secret value."><input value={selected.credentialReference} onChange={e=>setServers(old=>old.map(s=>s._id===selectedId?{...s,credentialReference:e.target.value}:s))}/></Field>}<div className="actions"><button className="btn secondary" onClick={()=>setNotice("Connection test simulated successfully.")}>Test Connection</button><button className="btn primary" onClick={()=>setNotice("Connection settings saved locally.")}>Save Connection Settings</button></div></div>}
-{tab==="Activity"&&<div className="formpanel"><h2>Activity</h2><p className="muted">Recent changes in this prototype session.</p>{activity.map(a=><div className="activityrow" key={a.id}><div className="activitydot"><Check/></div><div><b>{a.title}</b><p>{a.detail}</p><small>{a.time}</small></div></div>)}</div>}
-{tab==="Settings"&&<div className="formpanel"><h2>Server Settings</h2><p className="muted">Manage lifecycle and metadata.</p><Field label="Server status"><select value={selected.status} onChange={e=>setServers(old=>old.map(s=>s._id===selectedId?{...s,status:e.target.value}:s))}><option value="active">Active</option><option value="inactive">Inactive</option></select></Field><Field label="Version"><input type="number" min="1" value={selected.version} onChange={e=>setServers(old=>old.map(s=>s._id===selectedId?{...s,version:Number(e.target.value)||1}:s))}/></Field><button className="btn primary" onClick={()=>setNotice("Settings saved locally.")}>Save Settings</button><div className="dangerzone"><h3>Danger Zone</h3><p className="muted">Remove this server from the local registry.</p><button className="btn dangeroutline" onClick={()=>setConfirm(true)}>Delete MCP Server</button></div></div>}
-</div></div></section>}
-{page==="wizard"&&<section className="page wizardpage"><div className="pagehead"><button className="backcircle" onClick={()=>setPage(editing?"details":"list")}><ArrowLeft/></button><div><h1>{editing?"Edit MCP Server":"Register MCP Server"}</h1><p>Configure server identity, connection and tools. Step {step+1} of 4.</p></div></div><div className="wizardlayout"><aside className="steps">{steps.map((s,i)=><button key={s} className={(step===i?"current ":"")+(step>i?"done":"")} onClick={()=>i<step&&setStep(i)}><span className="stepnum">{step>i?<Check/>:i+1}</span><span><b>{s}</b><small>{["MCP details and client scope","Transport and credentials","Add and configure tools","Confirm and create"][i]}</small></span></button>)}<div className="stepnote"><ShieldCheck/> Secrets remain in your secret manager. Only references belong here.</div></aside><div className="wizardform">
-{step===0&&<><div className="stepheading"><h2>Basic Information</h2><p>Provide the basic details for this MCP server.</p></div><div className="formgrid"><Field label="MCP server name" required><input value={form.name} onChange={e=>setF("name",e.target.value)} placeholder="e.g. AutoCount MCP"/></Field><Field label="MCP ID" required hint="Unique, stable identifier."><input value={form.mcpId} onChange={e=>setF("mcpId",e.target.value)} placeholder="e.g. mcp-autocount"/></Field></div><Field label="Description"><textarea rows="3" value={form.description} onChange={e=>setF("description",e.target.value)} placeholder="Describe what this MCP server connects to"/></Field><div className="formgrid three"><Field label="Scope type"><input value="Client" disabled/></Field><Field label="Client" required><select value={form.clientId} onChange={e=>setF("clientId",e.target.value)}><option value="client-123">iTrade (client-123)</option><option value="client-001">iNextLabs (client-001)</option><option value="client-456">Client ABC (client-456)</option></select></Field><Field label="Initial status"><select value={form.status} onChange={e=>setF("status",e.target.value)}><option value="active">Active</option><option value="inactive">Inactive</option></select></Field></div><Field label="Version"><input type="number" min="1" value={form.version} onChange={e=>setF("version",e.target.value)}/></Field></>}
-{step===1&&<><div className="stepheading"><h2>Connection & Authentication</h2><p>Configure how clients connect to this MCP server.</p></div><div className="subpanel"><h3>Connection Settings</h3><Field label="Transport" required><select value={form.transport} onChange={e=>setF("transport",e.target.value)}><option value="streamableHttp">Streamable HTTP</option><option value="sse">Server-Sent Events (SSE)</option><option value="stdio">STDIO</option></select></Field>{form.transport!=="stdio"&&<Field label="Server URL" required hint="Use HTTPS for production deployments."><input value={form.url} onChange={e=>setF("url",e.target.value)} placeholder="https://example.com/mcp"/></Field>}</div><div className="subpanel"><h3>Authentication</h3><Field label="Authentication type" required><select value={form.authType} onChange={e=>setF("authType",e.target.value)}><option value="oauth2">OAuth 2.0</option><option value="apiKey">API Key</option><option value="bearerToken">Bearer Token</option><option value="none">None</option></select></Field>{form.authType!=="none"?<Field label="Credential reference" required hint="Reference a secret stored in Key Vault or another secret manager. Never paste the secret itself."><input value={form.credentialReference} onChange={e=>setF("credentialReference",e.target.value)} placeholder="e.g. secret-autocount-prod"/></Field>:<div className="callout">No authentication selected. Confirm this is appropriate for your environment.</div>}</div></>}
-{step===2&&<><div className="stepheading"><h2>Tools Configuration</h2><p>Each tool owns its own configSchema and config values. No root-level MCP config.</p></div><div className="toolstephead"><Badge tone="info">{form.tools.length} tools</Badge><span className="muted">{form.tools.filter(t=>t.enabled).length} enabled</span><button className="btn primary" onClick={()=>setF("tools",[...form.tools,{name:`newTool${form.tools.length+1}`,description:"Describe this tool.",enabled:true,configSchema:{type:"object",properties:{maxResults:{type:"number"}}},config:{maxResults:100}}])}><Plus/> Add Tool</button></div>{form.tools.map((t,i)=><div className="wizardtool" key={t.name}><div className="wizardtoolhead"><div className="toolicon"><Wrench/></div><div className="toolname"><b>{t.name}</b><small>{t.description}</small></div><Toggle checked={t.enabled} onChange={v=>setF("tools",form.tools.map((x,j)=>i===j?{...x,enabled:v}:x))} label={t.name}/><button className="icon" onClick={()=>openTool({...t,originalName:t.name,wizardIndex:i})}><Pencil/></button><button className="icon" onClick={()=>setF("tools",form.tools.filter((x,j)=>i!==j))}><X/></button></div><div className="schemaline">Schema {Object.entries(t.configSchema.properties||{}).map(([k,v])=><span className="chip" key={k}>{k} <em>({v.type})</em></span>)}</div><div className="chips">{Object.entries(t.config||{}).map(([k,v])=><span key={k}>{k}: <b>{String(v)}</b></span>)}</div></div>)}<div className="callout"><CircleHelp/> Fields in the tool editor are generated from each tool's configSchema.</div></>}
-{step===3&&<><div className="stepheading"><h2>Review & Create</h2><p>Review the configuration before saving.</p></div><Review title="Basic Information" rows={[["Name",form.name],["MCP ID",form.mcpId],["Description",form.description||"—"],["Client",`${clients[form.clientId]} (${form.clientId})`],["Status",pretty(form.status)],["Version",form.version]]} onEdit={()=>setStep(0)}/><Review title="Connection & Authentication" rows={[["Transport",pretty(form.transport)],["URL",form.transport==="stdio"?"Not applicable":form.url],["Authentication",pretty(form.authType)],["Credential reference",form.credentialReference||"None"]]} onEdit={()=>setStep(1)}/><Review title={`Tools (${form.tools.length})`} rows={form.tools.map(t=>[t.name,`${t.enabled?"Enabled":"Disabled"} · ${Object.entries(t.config||{}).map(([k,v])=>k+": "+v).join(", ")||"No config"} `])} onEdit={()=>setStep(2)}/><div className="callout"><ShieldCheck/> Frontend-only demo: saves local UI state; no backend record or remote MCP connection is created.</div></>}
-<div className="wizardactions"><button className="btn secondary" onClick={()=>step===0?setPage(editing?"details":"list"):setStep(step-1)}>{step===0?"Cancel":<><ChevronLeft/> Previous</>}</button><span className="grow"/><small>Step {step+1} of 4</small>{step<3?<button className="btn primary" onClick={next}>Save & Continue <ArrowRight/></button>:<button className="btn primary" onClick={save}>{editing?"Save Changes":"Register MCP Server"} <Check/></button>}</div>
-</div></div></section>}
-</main></div><footer className="footer">iNextLabs Management Portal · AI Services / MCP Servers · Interactive prototype — mock data only</footer>
-{tool&&<ToolModal tool={tool} setTool={setTool} step={toolStep} setStep={setToolStep} onClose={()=>setTool(null)} onSave={()=>{if(!tool.name.trim())return setNotice("Tool name is required.");const props=tool.configSchema.properties||{},config={};Object.entries(props).forEach(([k,v])=>config[k]=tool.config[k]??(v.type==="boolean"?false:v.type==="number"?0:""));const saved={...tool,config};if(page==="wizard")setF("tools",form.tools.map((t,i)=>t.name===tool.originalName?saved:t).map((t,i)=>tool.originalName==null&&t.name===tool.name?saved:t));else{setServers(old=>old.map(s=>s._id===selectedId?{...s,tools:tool.originalName? s.tools.map(t=>t.name===tool.originalName?saved:t):[...s.tools,saved]}:s));log("Tool configuration updated",saved.name+" was saved.")}setTool(null);setNotice("Tool saved locally.");}}/>}
-{confirm&&<div className="backdrop"><div className="confirm"><div className="dangerico"><AlertCircle/></div><h2>Delete MCP Server?</h2><p>This removes <b>{selected.name}</b> from this local prototype only. No real MCP service is affected.</p><div className="confirmactions"><button className="btn secondary" onClick={()=>setConfirm(false)}>Cancel</button><button className="btn danger" onClick={()=>{setServers(old=>old.filter(s=>s._id!==selectedId));setConfirm(false);setPage("list");setNotice("MCP server removed from mock registry.")}}>Delete Server</button></div></div></div>}</div>
+
+// 9. platformDb.mcptools
+const seedTools = [
+  {
+    _id: "mcptool-001",
+    mcpToolId: "autocount-get-customer",
+    mcpId: "mcp-autocount",
+    name: "getCustomer",
+    description: "Retrieve customer information from AutoCount.",
+    status: "active",
+    schemaVersion: 1,
+    inputSchema: {
+      type: "object",
+      properties: {
+        customerId: { type: "string", description: "Unique customer identifier" },
+      },
+      required: ["customerId"],
+      additionalProperties: false,
+    },
+    configSchema: {
+      type: "object",
+      properties: {
+        includeInactive: { type: "boolean", description: "Include inactive accounts" },
+        maxResults: { type: "number", description: "Maximum records returned" },
+      },
+      required: ["includeInactive", "maxResults"],
+      additionalProperties: false,
+    },
+    lastDiscoveredAt: "Oct 13, 2026 · 09:00 AM",
+    createdAt: "Oct 08, 2026",
+    updatedAt: "Oct 13, 2026",
+    agentAllowlists: ["sales-agent", "support-bot"],
+  },
+  {
+    _id: "mcptool-002",
+    mcpToolId: "autocount-get-product",
+    mcpId: "mcp-autocount",
+    name: "getProduct",
+    description: "Retrieve product details from AutoCount.",
+    status: "active",
+    schemaVersion: 1,
+    inputSchema: {
+      type: "object",
+      properties: {
+        productCode: { type: "string", description: "SKU or product code" },
+      },
+      required: ["productCode"],
+      additionalProperties: false,
+    },
+    configSchema: {
+      type: "object",
+      properties: {
+        warehouseId: { type: "string", description: "Target warehouse code" },
+        maxResults: { type: "number", description: "Batch fetch limit" },
+      },
+      required: ["maxResults"],
+      additionalProperties: false,
+    },
+    lastDiscoveredAt: "Oct 13, 2026 · 09:00 AM",
+    createdAt: "Oct 08, 2026",
+    updatedAt: "Oct 13, 2026",
+    agentAllowlists: ["catalog-agent"],
+  },
+  {
+    _id: "mcptool-003",
+    mcpToolId: "autocount-create-invoice",
+    mcpId: "mcp-autocount",
+    name: "createInvoice",
+    description: "Generate a draft invoice in AutoCount.",
+    status: "unavailable", // Upstream removed or broken
+    schemaVersion: 1,
+    inputSchema: {
+      type: "object",
+      properties: {
+        customerId: { type: "string", description: "Customer account ID" },
+        amount: { type: "number", description: "Total billing amount" },
+      },
+      required: ["customerId", "amount"],
+      additionalProperties: false,
+    },
+    configSchema: {
+      type: "object",
+      properties: {
+        autoApprove: { type: "boolean", description: "Auto-approve generated invoice" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    lastDiscoveredAt: "Oct 11, 2026 · 09:00 AM",
+    createdAt: "Oct 01, 2026",
+    updatedAt: "Oct 13, 2026",
+    agentAllowlists: ["sales-agent"], // FLAGGED: Agent still references an unavailable tool!
+  },
+  {
+    _id: "mcptool-004",
+    mcpToolId: "salesforce-search-accounts",
+    mcpId: "mcp-salesforce",
+    name: "searchAccounts",
+    description: "Search Salesforce CRM accounts and contacts.",
+    status: "active",
+    schemaVersion: 1,
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Account name or domain" },
+      },
+      required: ["query"],
+      additionalProperties: false,
+    },
+    configSchema: {
+      type: "object",
+      properties: {
+        maxResults: { type: "number", description: "Result cap" },
+      },
+      required: ["maxResults"],
+      additionalProperties: false,
+    },
+    lastDiscoveredAt: "Oct 12, 2026 · 02:30 PM",
+    createdAt: "Oct 07, 2026",
+    updatedAt: "Oct 12, 2026",
+    agentAllowlists: ["crm-agent"],
+  },
+  {
+    _id: "mcptool-005",
+    mcpToolId: "github-search-repos",
+    mcpId: "mcp-github",
+    name: "searchRepositories",
+    description: "Search GitHub public and private repositories.",
+    status: "active",
+    schemaVersion: 1,
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Repository search query" },
+      },
+      required: ["query"],
+      additionalProperties: false,
+    },
+    configSchema: {
+      type: "object",
+      properties: {
+        maxResults: { type: "number", description: "Max results" },
+      },
+      required: ["maxResults"],
+      additionalProperties: false,
+    },
+    lastDiscoveredAt: "Oct 10, 2026 · 11:00 AM",
+    createdAt: "Oct 02, 2026",
+    updatedAt: "Oct 10, 2026",
+    agentAllowlists: ["dev-assistant"],
+  },
+  {
+    _id: "mcptool-006",
+    mcpToolId: "slack-send-message",
+    mcpId: "mcp-slack",
+    name: "sendMessage",
+    description: "Send formatted messages to a designated Slack channel.",
+    status: "active",
+    schemaVersion: 1,
+    inputSchema: {
+      type: "object",
+      properties: {
+        channel: { type: "string", description: "Channel name or ID" },
+        text: { type: "string", description: "Markdown text payload" },
+      },
+      required: ["channel", "text"],
+      additionalProperties: false,
+    },
+    configSchema: {
+      type: "object",
+      properties: {
+        requireApproval: { type: "boolean", description: "Require human admin approval" },
+      },
+      required: ["requireApproval"],
+      additionalProperties: false,
+    },
+    lastDiscoveredAt: "Oct 14, 2026 · 08:00 AM",
+    createdAt: "Sep 29, 2026",
+    updatedAt: "Oct 14, 2026",
+    agentAllowlists: ["alert-bot"],
+  },
+];
+
+// 10. clientConfigDb.mcptoolconfigs
+const seedToolConfigs = [
+  {
+    _id: "mcptoolconfig-001",
+    mcpToolConfigId: "autocount-customer-client-123",
+    mcpId: "mcp-autocount",
+    mcpToolId: "autocount-get-customer",
+    scope: { type: "client", clientId: "client-123" },
+    schemaVersion: 1,
+    version: 1,
+    config: { includeInactive: false, maxResults: 100 },
+    status: "active",
+    createdAt: "2026-10-13T09:00:00Z",
+    updatedAt: "2026-10-13T09:00:00Z",
+  },
+  {
+    _id: "mcptoolconfig-002",
+    mcpToolConfigId: "autocount-customer-sales-agent",
+    mcpId: "mcp-autocount",
+    mcpToolId: "autocount-get-customer",
+    scope: {
+      type: "agent",
+      clientId: "client-123",
+      botId: "sales-bot",
+      agentId: "sales-agent",
+    },
+    schemaVersion: 1,
+    version: 1,
+    config: { includeInactive: true, maxResults: 25 },
+    status: "active",
+    createdAt: "2026-10-13T09:00:00Z",
+    updatedAt: "2026-10-13T09:00:00Z",
+  },
+  {
+    _id: "mcptoolconfig-003",
+    mcpToolConfigId: "autocount-product-client-123",
+    mcpId: "mcp-autocount",
+    mcpToolId: "autocount-get-product",
+    scope: { type: "client", clientId: "client-123" },
+    schemaVersion: 1,
+    version: 1,
+    config: { warehouseId: "WH-NORTH", maxResults: 50 },
+    status: "active",
+    createdAt: "2026-10-13T09:00:00Z",
+    updatedAt: "2026-10-13T09:00:00Z",
+  },
+  {
+    _id: "mcptoolconfig-004",
+    mcpToolConfigId: "salesforce-accounts-client-456",
+    mcpId: "mcp-salesforce",
+    mcpToolId: "salesforce-search-accounts",
+    scope: { type: "client", clientId: "client-456" },
+    schemaVersion: 1,
+    version: 1,
+    config: { maxResults: 50 },
+    status: "active",
+    createdAt: "2026-10-12T14:30:00Z",
+    updatedAt: "2026-10-12T14:30:00Z",
+  },
+  {
+    _id: "mcptoolconfig-005",
+    mcpToolConfigId: "github-repos-platform",
+    mcpId: "mcp-github",
+    mcpToolId: "github-search-repos",
+    scope: { type: "platform" },
+    schemaVersion: 1,
+    version: 1,
+    config: { maxResults: 30 },
+    status: "active",
+    createdAt: "2026-10-10T11:00:00Z",
+    updatedAt: "2026-10-10T11:00:00Z",
+  },
+  {
+    _id: "mcptoolconfig-006",
+    mcpToolConfigId: "slack-msg-client-001",
+    mcpId: "mcp-slack",
+    mcpToolId: "slack-send-message",
+    scope: { type: "client", clientId: "client-001" },
+    schemaVersion: 1,
+    version: 1,
+    config: { requireApproval: true },
+    status: "active",
+    createdAt: "2026-10-14T08:00:00Z",
+    updatedAt: "2026-10-14T08:00:00Z",
+  },
+];
+
+const clients = {
+  "client-123": "iTrade",
+  "client-001": "iNextLabs",
+  "client-456": "Client ABC",
+};
+
+const pretty = (v) =>
+  ({
+    active: "Active",
+    inactive: "Inactive",
+    unavailable: "Unavailable",
+    streamableHttp: "Streamable HTTP",
+    sse: "SSE",
+    stdio: "STDIO",
+    oauth2: "OAuth 2.0",
+    apiKey: "API Key",
+    bearerToken: "Bearer Token",
+    none: "None",
+    client: "Client Scope",
+    platform: "Platform Scope",
+  }[v] || v);
+
+function Badge({ children, tone = "neutral" }) {
+  return <span className={"badge badge-" + tone}>{children}</span>;
 }
-function ToolModal({tool,setTool,step,setStep,onClose,onSave}){const props=tool.configSchema.properties||{};const setProp=(k,v)=>setTool(t=>({...t,config:{...t.config,[k]:v}}));const add=()=>{let n="newParameter",i=2;while(props[n])n="newParameter"+i++;setTool(t=>({...t,configSchema:{...t.configSchema,properties:{...props,[n]:{type:"string"}}},config:{...t.config,[n]:""}}))};return <div className="backdrop"><div className="toolmodal"><div className="modalhead"><div><h2>Configure Tool</h2><p>{tool.name} · Tool-level configuration</p></div><button className="icon" onClick={onClose}><X/></button></div><div className="toolmodalbody"><aside className="modalsteps">{["Basic Details","Configuration","Review"].map((s,i)=><button className={step===i?"current":""} onClick={()=>i<step&&setStep(i)} key={s}><span>{i+1}</span>{s}</button>)}</aside><div className="modalform">{step===0&&<><h3>Basic Details</h3><Field label="Tool name" required><input value={tool.name} onChange={e=>setTool(t=>({...t,name:e.target.value.replace(/\s+/g,"")}))}/></Field><Field label="Description"><textarea rows="3" value={tool.description} onChange={e=>setTool(t=>({...t,description:e.target.value}))}/></Field><div className="togrow"><div><b>Tool enabled</b><small>Expose this tool to MCP clients.</small></div><Toggle checked={tool.enabled} onChange={v=>setTool(t=>({...t,enabled:v}))} label="Tool enabled"/></div></>}
-{step===1&&<><div className="modalsteptitle"><div><h3>Configuration Schema</h3><p className="muted">Edit the properties and their default values.</p></div><button className="btn secondary small" onClick={add}><Plus/> Add field</button></div>{Object.entries(props).map(([k,s])=><div className="schemaedit" key={k}><Field label="Property name"><input value={k} onChange={e=>{const n=e.target.value.replace(/\s+/g,"");if(!n||props[n])return;const p={...props,[n]:s};delete p[k];const c={...tool.config,[n]:tool.config[k]};delete c[k];setTool(t=>({...t,configSchema:{...t.configSchema,properties:p},config:c}))}}/></Field><Field label="Type"><select value={s.type} onChange={e=>{const type=e.target.value;setTool(t=>({...t,configSchema:{...t.configSchema,properties:{...props,[k]:{...s,type}}},config:{...t.config,[k]:type==="boolean"?Boolean(t.config[k]):type==="number"?Number(t.config[k])||0:String(t.config[k]??"")}}))}}><option value="string">String</option><option value="number">Number</option><option value="boolean">Boolean</option></select></Field><button className="icon" onClick={()=>{const p={...props},c={...tool.config};delete p[k];delete c[k];setTool(t=>({...t,configSchema:{...t.configSchema,properties:p},config:c}))}}><X/></button><div className="defaultvalue"><Field label="Default value">{s.type==="boolean"?<select value={String(Boolean(tool.config[k]))} onChange={e=>setProp(k,e.target.value==="true")}><option value="false">False</option><option value="true">True</option></select>:s.type==="number"?<input type="number" value={tool.config[k]??0} onChange={e=>setProp(k,Number(e.target.value))}/>:<input value={tool.config[k]??""} onChange={e=>setProp(k,e.target.value)}/>}</Field></div></div>)}{!Object.keys(props).length&&<div className="empty"><b>No config fields</b><p>Add a field to define this tool's schema.</p></div>}</>}
-{step===2&&<><h3>Review Tool</h3><Info label="Name" value={tool.name}/><Info label="Description" value={tool.description}/><Info label="Enabled" value={tool.enabled?"Yes":"No"}/>{Object.entries(tool.config||{}).map(([k,v])=><Info key={k} label={k} value={String(v)}/>)}</>}
-<div className="modalactions"><button className="btn secondary" onClick={step===0?onClose:()=>setStep(step-1)}>{step===0?"Cancel":"Back"}</button><span className="grow"/>{step<2?<button className="btn primary" onClick={()=>setStep(step+1)}>Next <ArrowRight/></button>:<button className="btn primary" onClick={onSave}>Save Tool</button>}</div></div></div></div></div>}
+
+function Field({ label, children, hint, required }) {
+  return (
+    <label className="field">
+      <span>
+        {label}
+        {required && <b className="req"> *</b>}
+      </span>
+      {children}
+      {hint && <small>{hint}</small>}
+    </label>
+  );
+}
+
+function Toggle({ checked, onChange, label }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      className={"toggle " + (checked ? "on" : "")}
+      onClick={() => onChange(!checked)}
+    >
+      <span />
+    </button>
+  );
+}
+
+function Status({ value }) {
+  return (
+    <Badge
+      tone={
+        value === "active"
+          ? "success"
+          : value === "unavailable"
+          ? "danger"
+          : value === "inactive"
+          ? "danger"
+          : "info"
+      }
+    >
+      {pretty(value)}
+    </Badge>
+  );
+}
+
+function Info({ label, value }) {
+  return (
+    <div className="info-row">
+      <span>{label}</span>
+      <strong>{value ?? "—"}</strong>
+    </div>
+  );
+}
+
+function Review({ title, rows, onEdit }) {
+  return (
+    <div className="review">
+      <div className="review-head">
+        <b>{title}</b>
+        <button className="text-action" onClick={onEdit}>
+          <Pencil size={13} /> Edit
+        </button>
+      </div>
+      {rows.map(([a, b]) => (
+        <Info key={a} label={a} value={b} />
+      ))}
+    </div>
+  );
+}
+
+export default function App() {
+  const [servers, setServers] = useState(seedServers);
+  const [tools, setTools] = useState(seedTools);
+  const [toolConfigs, setToolConfigs] = useState(seedToolConfigs);
+
+  const [selectedId, setSelectedId] = useState("mcp-001");
+  const [page, setPage] = useState("list");
+  const [tab, setTab] = useState("Overview");
+
+  // Filters
+  const [search, setSearch] = useState("");
+  const [scopeFilter, setScopeFilter] = useState("all");
+  const [status, setStatus] = useState("all");
+  const [transport, setTransport] = useState("all");
+  const [view, setView] = useState("cards");
+
+  const [nav, setNav] = useState(false);
+  const [aiServicesOpen, setAiServicesOpen] = useState(true);
+  const [notice, setNotice] = useState("");
+
+  // Server Wizard Form
+  const blankServer = () => ({
+    name: "",
+    mcpId: "",
+    description: "",
+    scopeType: "client",
+    clientId: "client-123",
+    status: "active",
+    version: "1",
+    connection: { transport: "streamableHttp", url: "https://example.com/mcp" },
+    authentication: { type: "oauth2", credentialReference: "" },
+    selectedToolIds: ["getCustomer", "getProduct"],
+    toolConfigsMap: {
+      getCustomer: { includeInactive: false, maxResults: 100 },
+      getProduct: { warehouseId: "WH-NORTH", maxResults: 50 },
+    },
+    expandedConfigTool: null,
+  });
+
+  const [form, setForm] = useState(blankServer());
+  const [step, setStep] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const [editId, setEditId] = useState(null);
+
+  // Tool Modal
+  const [selectedTool, setSelectedTool] = useState(null);
+  const [toolModalTab, setToolModalTab] = useState("schemas"); // "schemas" or "config"
+  const [toolSearch, setToolSearch] = useState("");
+  const [confirm, setConfirm] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
+
+  const toggleServerStatus = (id) => {
+    setServers((prev) =>
+      prev.map((s) => {
+        if (s._id === id) {
+          const nextStatus = s.status === "active" ? "inactive" : "active";
+          setNotice(`MCP Server "${s.name}" is now ${nextStatus}.`);
+          return {
+            ...s,
+            status: nextStatus,
+            updatedAt: "Just now",
+          };
+        }
+        return s;
+      })
+    );
+    setOpenMenuId(null);
+  };
+
+  const [activity, setActivity] = useState([
+    {
+      id: 1,
+      time: "Oct 13, 2026 · 09:00 AM",
+      title: "Tools Discovered",
+      detail: "Endpoint discovered 3 advertised tools from AutoCount MCP.",
+    },
+    {
+      id: 2,
+      time: "Oct 08, 2026 · 10:05 AM",
+      title: "Configuration Saved",
+      detail: "Client-level runtime config initialized for iTrade.",
+    },
+  ]);
+
+  const selected = servers.find((s) => s._id === selectedId) || servers[0];
+  const selectedServerTools = useMemo(
+    () => tools.filter((t) => t.mcpId === selected?.mcpId),
+    [tools, selected]
+  );
+
+  const log = (title, detail) =>
+    setActivity((a) => [{ id: Date.now(), time: "Just now", title, detail }, ...a]);
+
+  // Filtered servers
+  const filtered = useMemo(() => {
+    return servers.filter((s) => {
+      const scopeName = s.scope.type === "platform" ? "Platform" : clients[s.scope.clientId] || "";
+      const matchesSearch = `${s.name} ${s.mcpId} ${s.description} ${scopeName}`
+        .toLowerCase()
+        .includes(search.toLowerCase());
+
+      const matchesScope =
+        scopeFilter === "all" ||
+        (scopeFilter === "platform" && s.scope.type === "platform") ||
+        (s.scope.type === "client" && s.scope.clientId === scopeFilter);
+
+      const matchesStatus = status === "all" || s.status === status;
+      const matchesTransport = transport === "all" || s.connection.transport === transport;
+
+      return matchesSearch && matchesScope && matchesStatus && matchesTransport;
+    });
+  }, [servers, search, scopeFilter, status, transport]);
+
+  const details = (id) => {
+    setSelectedId(id);
+    setTab("Overview");
+    setPage("details");
+    setNotice("");
+  };
+
+  const create = () => {
+    setForm(blankServer());
+    setEditing(false);
+    setEditId(null);
+    setStep(0);
+    setPage("wizard");
+    setNotice("");
+  };
+
+  const edit = (s) => {
+    s = s || selected;
+    const serverTools = tools.filter((t) => t.mcpId === s.mcpId);
+    const configsMap = {};
+    const enabledIds = [];
+    serverTools.forEach((t) => {
+      const cfg = toolConfigs.find((c) => c.mcpToolId === t.mcpToolId);
+      if (t.status === "active") enabledIds.push(t.name);
+      configsMap[t.name] = cfg?.config ? { ...cfg.config } : {};
+    });
+
+    setForm({
+      name: s.name,
+      mcpId: s.mcpId,
+      description: s.description,
+      scopeType: s.scope.type,
+      clientId: s.scope.clientId || "client-123",
+      status: s.status,
+      version: String(s.version),
+      connection: { ...s.connection },
+      authentication: { ...s.authentication },
+      selectedToolIds: enabledIds.length > 0 ? enabledIds : serverTools.map((t) => t.name),
+      toolConfigsMap: configsMap,
+      expandedConfigTool: null,
+    });
+    setEditing(true);
+    setEditId(s._id);
+    setStep(0);
+    setPage("wizard");
+    setNotice("");
+  };
+
+  const next = () => {
+    if (step === 0 && (!form.name.trim() || !form.mcpId.trim())) {
+      return setNotice("MCP server name and MCP ID are required.");
+    }
+    if (
+      step === 1 &&
+      form.connection.transport !== "stdio" &&
+      !/^https?:\/\/.+/.test(form.connection.url)
+    ) {
+      return setNotice("Enter a valid HTTP or HTTPS connection URL.");
+    }
+    setNotice("");
+    setStep((s) => Math.min(3, s + 1));
+  };
+
+  const save = () => {
+    if (!form.name.trim() || !form.mcpId.trim()) {
+      setNotice("MCP server name and MCP ID are required.");
+      setStep(0);
+      return;
+    }
+    if (servers.some((s) => s.mcpId.toLowerCase() === form.mcpId.toLowerCase() && s._id !== editId)) {
+      setNotice("MCP ID must be unique across the platform.");
+      setStep(0);
+      return;
+    }
+    if (form.connection.transport !== "stdio" && !/^https?:\/\/.+/.test(form.connection.url)) {
+      setNotice("Enter a valid connection URL.");
+      setStep(1);
+      return;
+    }
+
+    const s = {
+      _id: editId || `mcp-${Date.now()}`,
+      mcpId: form.mcpId,
+      name: form.name,
+      description: form.description,
+      version: Number(form.version) || 1,
+      scope:
+        form.scopeType === "platform"
+          ? { type: "platform" }
+          : { type: "client", clientId: form.clientId },
+      status: form.status,
+      connection: { ...form.connection },
+      authentication: { ...form.authentication },
+      lastDiscoveredAt: editing
+        ? servers.find((x) => x._id === editId)?.lastDiscoveredAt || "Never"
+        : "Just now",
+      createdAt: editing
+        ? servers.find((x) => x._id === editId)?.createdAt || "Just now"
+        : "Just now",
+      updatedAt: "Just now",
+    };
+
+    setServers((old) => (editing ? old.map((x) => (x._id === editId ? s : x)) : [s, ...old]));
+
+    // Persist runtime configs for selected tools
+    const newConfigs = [...toolConfigs];
+    (form.selectedToolIds || []).forEach((toolName) => {
+      const toolRecord = tools.find((t) => t.name === toolName);
+      const mcpToolId = toolRecord ? toolRecord.mcpToolId : `${s.mcpId}-${toolName.toLowerCase()}`;
+      const existingIdx = newConfigs.findIndex(
+        (c) => c.mcpToolId === mcpToolId && c.scope.type === form.scopeType
+      );
+      const confData = form.toolConfigsMap?.[toolName] || {};
+      const cfgRecord = {
+        _id: existingIdx >= 0 ? newConfigs[existingIdx]._id : `mcptoolconfig-${Date.now()}-${toolName}`,
+        mcpToolConfigId: `${mcpToolId}-${form.clientId || "default"}`,
+        mcpId: s.mcpId,
+        mcpToolId,
+        scope: form.scopeType === "platform" ? { type: "platform" } : { type: "client", clientId: form.clientId },
+        schemaVersion: 1,
+        version: 1,
+        config: confData,
+        status: "active",
+        createdAt: "Just now",
+        updatedAt: "Just now",
+      };
+      if (existingIdx >= 0) newConfigs[existingIdx] = cfgRecord;
+      else newConfigs.push(cfgRecord);
+    });
+    setToolConfigs(newConfigs);
+
+    setSelectedId(s._id);
+    setPage("details");
+    setTab("Overview");
+    setNotice(editing ? "MCP server updated." : "MCP server registered in mock mode.");
+    log(
+      editing ? "MCP server updated" : "MCP server registered",
+      `${s.name} (${s.mcpId}) registered with ${(form.selectedToolIds || []).length} enabled tools.`
+    );
+  };
+
+  // Discover tools simulation
+  const syncTools = () => {
+    const timeStr = "Just now";
+    setServers((old) =>
+      old.map((s) => (s._id === selectedId ? { ...s, lastDiscoveredAt: timeStr } : s))
+    );
+    setTools((old) =>
+      old.map((t) => (t.mcpId === selected.mcpId ? { ...t, lastDiscoveredAt: timeStr } : t))
+    );
+    setNotice(`Discovered ${selectedServerTools.length} advertised tools from ${selected.connection.url}.`);
+    log(
+      "Tools Discovered",
+      `Queried ${selected.name} endpoint; synced ${selectedServerTools.length} tool definitions.`
+    );
+  };
+
+  const noticeUI = notice && (
+    <div className="notice">
+      <span>
+        <CircleHelp size={15} />
+        {notice}
+      </span>
+      <button onClick={() => setNotice("")}>
+        <X size={14} />
+      </button>
+    </div>
+  );
+
+  const tabs = ["Overview", "Tools Registry", "Connection & Auth", "Activity", "Settings"];
+  const steps = [
+    "Basic Information",
+    "Connection & Authentication",
+    "Tools & Discovery",
+    "Review & Create",
+  ];
+
+  return (
+    <div className="shell" onClick={() => openMenuId && setOpenMenuId(null)}>
+      {/* Top Header */}
+      <header className="top">
+        <button className="icon mobile" onClick={() => setNav(!nav)}>
+          <Menu />
+        </button>
+        <div className="brand">
+          <Bot size={22} />
+        </div>
+        <b className="brandname">iNextLabs</b>
+        <span className="sep" />
+        <b className="portal">Management Portal</b>
+        <div className="topright">
+          <button className="icon">
+            <CircleHelp />
+          </button>
+          <button className="icon">
+            <Bell />
+          </button>
+          <button className="icon">
+            <Settings />
+          </button>
+          <div className="avatar">MS</div>
+          <div className="profile">
+            <b>Manoj Kumar S</b>
+            <small>Admin</small>
+          </div>
+        </div>
+      </header>
+
+      <div className="body">
+        {/* Sidebar */}
+        <aside className={"sidebar " + (nav ? "open" : "")}>
+          <button className="navitem">
+            <LayoutDashboard />
+            <span>Dashboard</span>
+          </button>
+          <div className="navlabel">
+            PLATFORM <ChevronDown />
+          </div>
+          <button className="navitem">
+            <Users />
+            <span>Client Account</span>
+          </button>
+          <button className="navitem">
+            <Users />
+            <span>Client Teams</span>
+          </button>
+          <button className="navitem">
+            <Database />
+            <span>AI Resource Catalog</span>
+          </button>
+          <button className="navitem">
+            <Server />
+            <span>Infra Resources</span>
+          </button>
+          <div className="navgroup">
+            <button
+              className={"navitem navparent " + (aiServicesOpen ? "open active" : "")}
+              onClick={() => setAiServicesOpen(!aiServicesOpen)}
+            >
+              <Bot />
+              <span>AI Services</span>
+              <ChevronDown size={14} className={"caret " + (aiServicesOpen ? "open" : "")} />
+            </button>
+            {aiServicesOpen && (
+              <div className="navsub">
+                <button
+                  className="navitem sub selected"
+                  onClick={() => {
+                    setPage("list");
+                    setNotice("");
+                  }}
+                >
+                  <Plug />
+                  <span>MCP Servers</span>
+                </button>
+                <button className="navitem sub">
+                  <Bot />
+                  <span>Agent Skills</span>
+                </button>
+                <button className="navitem sub">
+                  <Zap />
+                  <span>Model Registry</span>
+                </button>
+                <button className="navitem sub">
+                  <FileText />
+                  <span>Docs AI</span>
+                </button>
+                <button className="navitem sub">
+                  <Activity />
+                  <span>Insights AI</span>
+                </button>
+              </div>
+            )}
+          </div>
+          <button className="navitem">
+            <Activity />
+            <span>Activity Logs</span>
+          </button>
+          <div className="sidebottom">
+            <Settings /> Settings
+          </div>
+        </aside>
+
+        {/* Main Content */}
+        <main className="main">
+          {/* Breadcrumb */}
+          <div className="crumb">
+            Home <ChevronRight /> AI Services <ChevronRight /> MCP Servers <ChevronRight />{" "}
+            <b>
+              {page === "list"
+                ? "Registry"
+                : page === "wizard"
+                ? editing
+                  ? "Edit MCP Server"
+                  : "Register MCP Server"
+                : selected.name}
+            </b>
+          </div>
+
+          {noticeUI}
+
+          {/* PAGE 1: LIST VIEW */}
+          {page === "list" && (
+            <section className="page">
+              <div className="pagehead">
+                <div className="headicon">
+                  <Plug />
+                </div>
+                <div>
+                  <h1>MCP Server Registry</h1>
+                  <p>
+                    Manage Model Context Protocol server endpoints, discovered tools, and client runtime configs.
+                  </p>
+                </div>
+                <button className="btn primary push" onClick={create}>
+                  <Plus /> Register MCP Server
+                </button>
+              </div>
+
+              {/* Stats */}
+              <div className="stats">
+                {[
+                  [Server, "Total MCP Servers", servers.length, "Registered integrations", "orange"],
+                  [
+                    CheckCircle2,
+                    "Active Servers",
+                    servers.filter((s) => s.status === "active").length,
+                    "Enabled endpoints",
+                    "green",
+                  ],
+                  [
+                    Wrench,
+                    "Discovered Tools",
+                    tools.length,
+                    `${tools.filter((t) => t.status === "active").length} active · ${
+                      tools.filter((t) => t.status === "unavailable").length
+                    } unavailable`,
+                    "blue",
+                  ],
+                  [
+                    Settings,
+                    "Runtime Configs",
+                    toolConfigs.length,
+                    "Scoped client/agent overrides",
+                    "orange",
+                  ],
+                ].map(([I, l, v, sub, c]) => (
+                  <div className="stat" key={l}>
+                    <div>
+                      {l}
+                      <span className={"staticon " + c}>
+                        <I />
+                      </span>
+                    </div>
+                    <strong>{v}</strong>
+                    <small>{sub}</small>
+                  </div>
+                ))}
+              </div>
+
+              {/* Panel */}
+              <div className="panel">
+                <div className="panelhead">
+                  <div>
+                    <h2>MCP Server Endpoints</h2>
+                    <p>Search, filter and inspect connection parameters and tool discovery status.</p>
+                  </div>
+                  <button
+                    className="btn subtle"
+                    onClick={() => {
+                      setSearch("");
+                      setScopeFilter("all");
+                      setStatus("all");
+                      setTransport("all");
+                    }}
+                  >
+                    <RefreshCw /> Reset filters
+                  </button>
+                </div>
+
+                {/* Filters */}
+                <div className="filters">
+                  <div className="search">
+                    <Search />
+                    <input
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      placeholder="Search by server name, MCP ID, client scope, or URL..."
+                    />
+                  </div>
+                  <select value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value)}>
+                    <option value="all">All scopes</option>
+                    <option value="platform">Platform (Shared)</option>
+                    <option value="client-123">iTrade (client-123)</option>
+                    <option value="client-001">iNextLabs (client-001)</option>
+                    <option value="client-456">Client ABC (client-456)</option>
+                  </select>
+                  <select value={status} onChange={(e) => setStatus(e.target.value)}>
+                    <option value="all">All statuses</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                  <select value={transport} onChange={(e) => setTransport(e.target.value)}>
+                    <option value="all">All transports</option>
+                    <option value="streamableHttp">Streamable HTTP</option>
+                    <option value="sse">SSE</option>
+                    <option value="stdio">STDIO</option>
+                  </select>
+                  <div className="view">
+                    <button
+                      className={view === "cards" ? "chosen" : ""}
+                      onClick={() => setView("cards")}
+                      title="Cards View"
+                    >
+                      <LayoutDashboard />
+                    </button>
+                    <button
+                      className={view === "table" ? "chosen" : ""}
+                      onClick={() => setView("table")}
+                      title="Table View"
+                    >
+                      <Filter />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cards View */}
+                {view === "cards" ? (
+                  <div className="cards">
+                    {filtered.map((s) => {
+                      const serverTools = tools.filter((t) => t.mcpId === s.mcpId);
+                      const activeTools = serverTools.filter((t) => t.status === "active").length;
+                      const hasUnavailable = serverTools.some((t) => t.status === "unavailable");
+
+                      return (
+                        <div className="servercard" key={s._id}>
+                          <div className="serverline">
+                            <div className="servericon">{s.name.slice(0, 2).toUpperCase()}</div>
+                            <div className="serverlabel">
+                              <button className="link" onClick={() => details(s._id)}>
+                                {s.name}
+                              </button>
+                              <small>{s.mcpId}</small>
+                            </div>
+                            <Status value={s.status} />
+                            <div className="action-menu-wrap">
+                              <button
+                                className="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOpenMenuId(openMenuId === s._id ? null : s._id);
+                                }}
+                                title="Server options"
+                              >
+                                <Ellipsis />
+                              </button>
+                              {openMenuId === s._id && (
+                                <div className="action-dropdown" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    className="action-dropdown-item"
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      details(s._id);
+                                    }}
+                                  >
+                                    <Eye size={14} /> View Details
+                                  </button>
+                                  <button
+                                    className="action-dropdown-item"
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      edit(s);
+                                    }}
+                                  >
+                                    <Pencil size={14} /> Edit Configuration
+                                  </button>
+                                  <button
+                                    className="action-dropdown-item"
+                                    onClick={() => toggleServerStatus(s._id)}
+                                  >
+                                    <Power size={14} />
+                                    {s.status === "active" ? "Deactivate Server" : "Activate Server"}
+                                  </button>
+                                  <div className="action-dropdown-sep" />
+                                  <button
+                                    className="action-dropdown-item danger"
+                                    onClick={() => {
+                                      setOpenMenuId(null);
+                                      setDeleteTarget(s);
+                                    }}
+                                  >
+                                    <Trash2 size={14} /> Delete Server
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <p>{s.description}</p>
+                          <div className="metadata">
+                            <span>
+                              <Users />
+                              {s.scope.type === "platform" ? (
+                                <Badge tone="purple">Platform Scope</Badge>
+                              ) : (
+                                <b>{clients[s.scope.clientId] || s.scope.clientId}</b>
+                              )}
+                            </span>
+                            <span>
+                              <Globe /> {pretty(s.connection.transport)}
+                            </span>
+                            <span>
+                              <Link2 />{" "}
+                              <span
+                                style={{
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  maxWidth: "220px",
+                                }}
+                              >
+                                {s.connection.url || "stdio (Local Process)"}
+                              </span>
+                            </span>
+                          </div>
+                          <div className="cardfoot">
+                            <span>
+                              <Wrench /> {serverTools.length} discovered tools
+                              {hasUnavailable && (
+                                <span style={{ color: "#b42318", marginLeft: "4px" }} title="Has unavailable tools">
+                                  (⚠️ has unavailable)
+                                </span>
+                              )}
+                            </span>
+                            <span>v{s.version}</span>
+                            <button className="icon" onClick={() => details(s._id)}>
+                              <ChevronRight />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* Table View */
+                  <div className="tablewrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>MCP SERVER</th>
+                          <th>SCOPE</th>
+                          <th>TRANSPORT</th>
+                          <th>ENDPOINT URL</th>
+                          <th>DISCOVERED TOOLS</th>
+                          <th>STATUS</th>
+                          <th>UPDATED</th>
+                          <th />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.map((s) => {
+                          const serverTools = tools.filter((t) => t.mcpId === s.mcpId);
+                          const unavail = serverTools.filter((t) => t.status === "unavailable").length;
+
+                          return (
+                            <tr key={s._id}>
+                              <td>
+                                <button className="link" onClick={() => details(s._id)}>
+                                  {s.name}
+                                </button>
+                                <small className="sub">{s.mcpId}</small>
+                              </td>
+                              <td>
+                                {s.scope.type === "platform" ? (
+                                  <Badge tone="purple">Platform</Badge>
+                                ) : (
+                                  `${clients[s.scope.clientId] || s.scope.clientId}`
+                                )}
+                              </td>
+                              <td>{pretty(s.connection.transport)}</td>
+                              <td>
+                                <small style={{ fontFamily: "monospace", color: "#475162" }}>
+                                  {s.connection.url || "stdio"}
+                                </small>
+                              </td>
+                              <td>
+                                <Badge tone={unavail > 0 ? "warning" : "info"}>
+                                  {serverTools.length} tools {unavail > 0 && `(${unavail} unavailable)`}
+                                </Badge>
+                              </td>
+                              <td>
+                                <Status value={s.status} />
+                              </td>
+                              <td>{s.updatedAt}</td>
+                              <td>
+                                <div className="action-menu-wrap">
+                                  <button
+                                    className="icon"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenMenuId(openMenuId === s._id ? null : s._id);
+                                    }}
+                                    title="Server options"
+                                  >
+                                    <Ellipsis />
+                                  </button>
+                                  {openMenuId === s._id && (
+                                    <div className="action-dropdown" onClick={(e) => e.stopPropagation()}>
+                                      <button
+                                        className="action-dropdown-item"
+                                        onClick={() => {
+                                          setOpenMenuId(null);
+                                          details(s._id);
+                                        }}
+                                      >
+                                        <Eye size={14} /> View Details
+                                      </button>
+                                      <button
+                                        className="action-dropdown-item"
+                                        onClick={() => {
+                                          setOpenMenuId(null);
+                                          edit(s);
+                                        }}
+                                      >
+                                        <Pencil size={14} /> Edit Configuration
+                                      </button>
+                                      <button
+                                        className="action-dropdown-item"
+                                        onClick={() => toggleServerStatus(s._id)}
+                                      >
+                                        <Power size={14} />
+                                        {s.status === "active" ? "Deactivate Server" : "Activate Server"}
+                                      </button>
+                                      <div className="action-dropdown-sep" />
+                                      <button
+                                        className="action-dropdown-item danger"
+                                        onClick={() => {
+                                          setOpenMenuId(null);
+                                          setDeleteTarget(s);
+                                        }}
+                                      >
+                                        <Trash2 size={14} /> Delete Server
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {!filtered.length && (
+                  <div className="empty">
+                    <Search />
+                    <b>No MCP servers found</b>
+                    <p>Try changing your search or filters.</p>
+                  </div>
+                )}
+                <div className="footnote">
+                  Showing {filtered.length} of {servers.length} MCP servers{" "}
+                  <span>Interactive prototype · MCP Registry</span>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* PAGE 2: DETAILS VIEW */}
+          {page === "details" && (
+            <section className="page">
+              <div className="backline">
+                <button onClick={() => setPage("list")}>
+                  <ArrowLeft /> All MCP Servers
+                </button>
+                <span>/ {selected.mcpId}</span>
+              </div>
+
+              {/* Detail Header */}
+              <div className="pagehead detailhead">
+                <div className="servericon big">{selected.name.slice(0, 2).toUpperCase()}</div>
+                <div className="grow">
+                  <h1>{selected.name}</h1>
+                  <p>
+                    {selected.mcpId} · Version {selected.version} ·{" "}
+                    {selected.scope.type === "platform"
+                      ? "Platform Shared Scope"
+                      : `Client: ${clients[selected.scope.clientId] || selected.scope.clientId}`}
+                  </p>
+                  <div className="badges">
+                    <Status value={selected.status} />
+                    {selected.scope.type === "platform" ? (
+                      <Badge tone="purple">Platform Scope</Badge>
+                    ) : (
+                      <Badge tone="info">Tenant: {clients[selected.scope.clientId]}</Badge>
+                    )}
+                    <Badge tone="neutral">{selectedServerTools.length} Discovered Tools</Badge>
+                  </div>
+                </div>
+                <button
+                  className={"btn " + (selected.status === "active" ? "secondary" : "primary")}
+                  onClick={() => toggleServerStatus(selected._id)}
+                  title={selected.status === "active" ? "Deactivate this server" : "Activate this server"}
+                >
+                  <Power size={14} />
+                  {selected.status === "active" ? "Deactivate Server" : "Activate Server"}
+                </button>
+                <button className="btn secondary" onClick={() => edit()}>
+                  <Pencil size={14} /> Edit
+                </button>
+                <button
+                  className="btn dangeroutline"
+                  onClick={() => setDeleteTarget(selected)}
+                  title="Delete Server"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+
+              {/* Tabs Panel */}
+              <div className="panel">
+                <div className="tabs">
+                  {tabs.map((t) => (
+                    <button
+                      key={t}
+                      className={tab === t ? "active" : ""}
+                      onClick={() => setTab(t)}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="tabbody">
+                  {/* TAB 1: OVERVIEW */}
+                  {tab === "Overview" && (
+                    <div className="overview">
+                      <div className="subpanel">
+                        <h2>Server Identity & Scope</h2>
+                        <p className="muted">
+                          Server registration, scope type, and lifecycle audit metadata.
+                        </p>
+                        <Info label="Server Name" value={selected.name} />
+                        <Info label="MCP ID" value={selected.mcpId} />
+                        <Info label="Description" value={selected.description} />
+                        <Info
+                          label="Scope Type"
+                          value={
+                            selected.scope.type === "platform" ? (
+                              <Badge tone="purple">Platform (Shared Integration)</Badge>
+                            ) : (
+                              <Badge tone="info">Client Tenant ({selected.scope.clientId})</Badge>
+                            )
+                          }
+                        />
+                        {selected.scope.clientId && (
+                          <Info
+                            label="Client Name"
+                            value={clients[selected.scope.clientId] || selected.scope.clientId}
+                          />
+                        )}
+                        <Info label="Version" value={selected.version} />
+                        <Info label="Status" value={<Status value={selected.status} />} />
+                        <Info label="Last Discovered" value={selected.lastDiscoveredAt || "Never"} />
+                        <Info label="Created at" value={selected.createdAt} />
+                        <Info label="Updated at" value={selected.updatedAt} />
+                      </div>
+
+                      <div className="stack">
+                        {/* Connection Card */}
+                        <div className="subpanel">
+                          <div className="subhead">
+                            <Globe />
+                            <div>
+                              <h2>Connection Settings</h2>
+                              <p className="muted">
+                                Transport protocol and endpoint address.
+                              </p>
+                            </div>
+                          </div>
+                          <Info label="Transport" value={pretty(selected.connection.transport)} />
+                          <Info
+                            label="URL"
+                            value={
+                              selected.connection.url ? (
+                                <code style={{ fontSize: "11px" }}>{selected.connection.url}</code>
+                              ) : (
+                                "stdio process"
+                              )
+                            }
+                          />
+                          <Info
+                            label="Discovered Tools"
+                            value={`${selectedServerTools.length} tools registered`}
+                          />
+                          <button className="btn secondary full" onClick={syncTools}>
+                            <RefreshCw size={14} /> Sync & Discover Tools Now
+                          </button>
+                        </div>
+
+                        {/* Authentication Card */}
+                        <div className="subpanel">
+                          <div className="subhead">
+                            <ShieldCheck />
+                            <div>
+                              <h2>Authentication</h2>
+                              <p className="muted">
+                                Security and credentials management.
+                              </p>
+                            </div>
+                          </div>
+                          <Info label="Auth Type" value={pretty(selected.authentication.type)} />
+                          <Info
+                            label="Secret Isolation"
+                            value={
+                              <Badge tone="success">
+                                {selected.scope.type === "platform"
+                                  ? "Isolated per client at runtime"
+                                  : "Tenant isolated"}
+                              </Badge>
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 2: TOOLS REGISTRY (UPDATED SCHEMA & DISCOVERY) */}
+                  {tab === "Tools Registry" && (
+                    <>
+                      <div className="panelhead inner">
+                        <div>
+                          <h2>Discovered Tools</h2>
+                          <p>
+                            Tools advertised by <code>{selected.name}</code>. Tools define input parameters, and runtime settings can be customized per client or agent.
+                          </p>
+                        </div>
+                        <button className="btn secondary" onClick={syncTools}>
+                          <RefreshCw size={14} /> Re-sync from Endpoint
+                        </button>
+                      </div>
+
+                      <div className="search toolsearch">
+                        <Search />
+                        <input
+                          value={toolSearch}
+                          onChange={(e) => setToolSearch(e.target.value)}
+                          placeholder="Search discovered tools by name or description..."
+                        />
+                      </div>
+
+                      <div className="tablewrap">
+                        <table className="tooltable">
+                          <thead>
+                            <tr>
+                              <th>TOOL</th>
+                              <th>DESCRIPTION</th>
+                              <th>STATUS</th>
+                              <th>INPUT SCHEMA</th>
+                              <th>CONFIG SCHEMA</th>
+                              <th>ACTIVE CONFIG SCOPES</th>
+                              <th>ACTIONS</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedServerTools
+                              .filter((t) =>
+                                `${t.name} ${t.description} ${t.mcpToolId}`
+                                  .toLowerCase()
+                                  .includes(toolSearch.toLowerCase())
+                              )
+                              .map((t) => {
+                                const configs = toolConfigs.filter((c) => c.mcpToolId === t.mcpToolId);
+                                const agentOverrides = configs.filter((c) => c.scope.type === "agent");
+                                const clientConfigs = configs.filter((c) => c.scope.type === "client");
+
+                                const isUnavailable = t.status === "unavailable";
+                                const isFlaggedInAllowlist =
+                                  isUnavailable && t.agentAllowlists && t.agentAllowlists.length > 0;
+
+                                return (
+                                  <tr key={t.mcpToolId}>
+                                    <td>
+                                      <b>{t.name}</b>
+                                      <small className="sub">ID: {t.mcpToolId}</small>
+                                    </td>
+                                    <td>
+                                      <div>{t.description}</div>
+                                    </td>
+                                    <td>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                                        <Status value={t.status} />
+                                        {isFlaggedInAllowlist && (
+                                          <span
+                                            className="allowlist-badge"
+                                            title={`Tool is unavailable but referenced in agent allowlist: ${t.agentAllowlists.join(", ")}`}
+                                          >
+                                            ⚠️ Allowlist: {t.agentAllowlists.join(", ")}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    {/* Input Schema Preview */}
+                                    <td>
+                                      <div className="chips">
+                                        {Object.entries(t.inputSchema.properties || {}).map(
+                                          ([k, v]) => (
+                                            <span key={k} title={v.description || k}>
+                                              {k} <em>({v.type})</em>
+                                              {t.inputSchema.required?.includes(k) && (
+                                                <b style={{ color: "#dc2626" }}>*</b>
+                                              )}
+                                            </span>
+                                          )
+                                        )}
+                                        {!Object.keys(t.inputSchema.properties || {}).length && (
+                                          <small style={{ color: "#8a92a0" }}>None</small>
+                                        )}
+                                      </div>
+                                    </td>
+                                    {/* Config Schema Preview */}
+                                    <td>
+                                      <div className="chips">
+                                        {Object.entries(t.configSchema.properties || {}).map(
+                                          ([k, v]) => (
+                                            <span key={k} title={v.description || k}>
+                                              {k} <em>({v.type})</em>
+                                            </span>
+                                          )
+                                        )}
+                                        {!Object.keys(t.configSchema.properties || {}).length && (
+                                          <small style={{ color: "#8a92a0" }}>None</small>
+                                        )}
+                                      </div>
+                                    </td>
+                                    {/* Runtime Config Scopes */}
+                                    <td>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                                        {clientConfigs.length > 0 && (
+                                          <span style={{ fontSize: "9.5px", color: "#166534" }}>
+                                            ✓ Client Default ({clientConfigs[0].scope.clientId})
+                                          </span>
+                                        )}
+                                        {agentOverrides.length > 0 ? (
+                                          <Badge tone="purple">
+                                            {agentOverrides.length} Agent Override
+                                            {agentOverrides.length > 1 ? "s" : ""}
+                                          </Badge>
+                                        ) : (
+                                          <span style={{ fontSize: "9px", color: "#8a92a0" }}>
+                                            No agent override
+                                          </span>
+                                        )}
+                                      </div>
+                                    </td>
+                                    <td>
+                                      <button
+                                        className="btn secondary small"
+                                        onClick={() => {
+                                          setSelectedTool(t);
+                                          setToolModalTab("schemas");
+                                        }}
+                                      >
+                                        View Details & Configure
+                                      </button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  )}
+
+                  {/* TAB 3: CONNECTION & AUTH */}
+                  {tab === "Connection & Auth" && (
+                    <div className="formpanel">
+                      <h2>Connection & Authentication</h2>
+                      <p className="muted">
+                        Manage endpoint connection settings and authentication type.
+                      </p>
+                      <Field label="Transport">
+                        <select
+                          value={selected.connection.transport}
+                          onChange={(e) =>
+                            setServers((old) =>
+                              old.map((s) =>
+                                s._id === selectedId
+                                  ? {
+                                      ...s,
+                                      connection: { ...s.connection, transport: e.target.value },
+                                    }
+                                  : s
+                              )
+                            )
+                          }
+                        >
+                          <option value="streamableHttp">Streamable HTTP</option>
+                          <option value="sse">Server-Sent Events (SSE)</option>
+                          <option value="stdio">STDIO</option>
+                        </select>
+                      </Field>
+
+                      {selected.connection.transport !== "stdio" && (
+                        <Field label="Connection URL" hint="Endpoint advertised by the MCP server.">
+                          <input
+                            value={selected.connection.url}
+                            onChange={(e) =>
+                              setServers((old) =>
+                                old.map((s) =>
+                                  s._id === selectedId
+                                    ? {
+                                        ...s,
+                                        connection: { ...s.connection, url: e.target.value },
+                                      }
+                                    : s
+                                )
+                              )
+                            }
+                          />
+                        </Field>
+                      )}
+
+                      <Field label="Authentication Type">
+                        <select
+                          value={selected.authentication.type}
+                          onChange={(e) =>
+                            setServers((old) =>
+                              old.map((s) =>
+                                s._id === selectedId
+                                  ? {
+                                      ...s,
+                                      authentication: {
+                                        ...s.authentication,
+                                        type: e.target.value,
+                                      },
+                                    }
+                                  : s
+                              )
+                            )
+                          }
+                        >
+                          <option value="oauth2">OAuth 2.0</option>
+                          <option value="apiKey">API Key</option>
+                          <option value="bearerToken">Bearer Token</option>
+                          <option value="none">None</option>
+                        </select>
+                      </Field>
+
+                      <div className="actions">
+                        <button
+                          className="btn secondary"
+                          onClick={() => setNotice("Connection check simulated successfully.")}
+                        >
+                          Test Connection
+                        </button>
+                        <button
+                          className="btn primary"
+                          onClick={() => setNotice("Connection & auth settings saved locally.")}
+                        >
+                          Save Connection Settings
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 4: ACTIVITY */}
+                  {tab === "Activity" && (
+                    <div className="formpanel">
+                      <h2>Discovery & Config Activity</h2>
+                      <p className="muted">Recent schema synchronization and scope modifications.</p>
+                      {activity.map((a) => (
+                        <div className="activityrow" key={a.id}>
+                          <div className="activitydot">
+                            <Check />
+                          </div>
+                          <div>
+                            <b>{a.title}</b>
+                            <p>{a.detail}</p>
+                            <small>{a.time}</small>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* TAB 5: SETTINGS */}
+                  {tab === "Settings" && (
+                    <div className="formpanel">
+                      <h2>Server Settings</h2>
+                      <p className="muted">Server lifecycle, maintenance, and administrative actions.</p>
+
+                      <div className="dangerzone" style={{ marginTop: "1.25rem" }}>
+                        <h3>Danger Zone</h3>
+                        <p className="muted">
+                          Permanently remove this MCP server registration and its tool discovery links.
+                        </p>
+                        <button className="btn dangeroutline" onClick={() => setConfirm(true)}>
+                          Delete MCP Server
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* PAGE 3: CREATE / EDIT WIZARD */}
+          {page === "wizard" && (
+            <section className="page wizardpage">
+              <div className="pagehead">
+                <button
+                  className="backcircle"
+                  onClick={() => setPage(editing ? "details" : "list")}
+                >
+                  <ArrowLeft />
+                </button>
+                <div>
+                  <h1>{editing ? "Edit MCP Server" : "Register MCP Server"}</h1>
+                  <p>
+                    Configure server endpoint and authentication references. Step {step + 1} of 4.
+                  </p>
+                </div>
+              </div>
+
+              <div className="wizardlayout">
+                {/* Steps Navigator */}
+                <aside className="steps">
+                  <div className="wizard-sidehead">
+                    <h3>{editing ? "Edit Server" : "New MCP Server"}</h3>
+                    <div className="wizard-sidebadge">
+                      <span className="draft-dot" />
+                      <span>DRAFT v{form.version || 1}</span>
+                    </div>
+                  </div>
+                  {steps.map((s, i) => (
+                    <button
+                      key={s}
+                      className={(step === i ? "current " : "") + (step > i ? "done" : "")}
+                      onClick={() => i < step && setStep(i)}
+                    >
+                      <span className="stepnum">{step > i ? <Check /> : i + 1}</span>
+                      <span>
+                        <b>{s}</b>
+                        <small>
+                          {
+                            [
+                              "Identity and client/platform scope",
+                              "Transport and connection settings",
+                              "Discovered tools overview",
+                              "Confirm and register server",
+                            ][i]
+                          }
+                        </small>
+                      </span>
+                    </button>
+                  ))}
+                </aside>
+
+                {/* Wizard Form Content */}
+                <div className="wizardform">
+                  {/* STEP 0: BASIC INFORMATION */}
+                  {step === 0 && (
+                    <>
+                      <div className="stepheading">
+                        <h2>Basic Information</h2>
+                        <p>
+                          Define the MCP server identity and specify whether it is tenant-specific or shared platform-wide.
+                        </p>
+                      </div>
+                      <div className="formgrid">
+                        <Field label="MCP Server Name" required>
+                          <input
+                            value={form.name}
+                            onChange={(e) => setForm({ ...form, name: e.target.value })}
+                            placeholder="e.g. AutoCount MCP"
+                          />
+                        </Field>
+                        <Field label="MCP ID" required hint="Unique, stable identifier (e.g. mcp-autocount)">
+                          <input
+                            value={form.mcpId}
+                            onChange={(e) => setForm({ ...form, mcpId: e.target.value })}
+                            placeholder="e.g. mcp-autocount"
+                          />
+                        </Field>
+                      </div>
+
+                      <Field label="Description">
+                        <textarea
+                          rows="3"
+                          value={form.description}
+                          onChange={(e) => setForm({ ...form, description: e.target.value })}
+                          placeholder="Describe the systems and resources this MCP server exposes..."
+                        />
+                      </Field>
+
+                      <div className="formgrid">
+                        <Field label="Scope Type" required hint="Tenant vs Shared">
+                          <select
+                            value={form.scopeType}
+                            onChange={(e) => setForm({ ...form, scopeType: e.target.value })}
+                          >
+                            <option value="client">Client Scope (Tenant-specific)</option>
+                            <option value="platform">Platform Scope (Shared)</option>
+                          </select>
+                        </Field>
+
+                        {form.scopeType === "client" ? (
+                          <Field label="Client" required hint="Target tenant client">
+                            <select
+                              value={form.clientId}
+                              onChange={(e) => setForm({ ...form, clientId: e.target.value })}
+                            >
+                              <option value="client-123">iTrade (client-123)</option>
+                              <option value="client-001">iNextLabs (client-001)</option>
+                              <option value="client-456">Client ABC (client-456)</option>
+                            </select>
+                          </Field>
+                        ) : (
+                          <Field label="Platform Scope Notice">
+                            <input value="Shared integration (tenant credentials isolated)" disabled />
+                          </Field>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {/* STEP 1: CONNECTION & AUTH */}
+                  {step === 1 && (
+                    <>
+                      <div className="stepheading">
+                        <h2>Connection & Authentication</h2>
+                        <p>Configure transport, endpoint location, and authentication mode.</p>
+                      </div>
+
+                      <div className="subpanel">
+                        <h3>Connection Settings</h3>
+                        <Field label="Transport" required>
+                          <select
+                            value={form.connection.transport}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                connection: { ...form.connection, transport: e.target.value },
+                              })
+                            }
+                          >
+                            <option value="streamableHttp">Streamable HTTP</option>
+                            <option value="sse">Server-Sent Events (SSE)</option>
+                            <option value="stdio">STDIO</option>
+                          </select>
+                        </Field>
+
+                        {form.connection.transport !== "stdio" && (
+                          <Field
+                            label="Server URL"
+                            required
+                            hint="Endpoint URL for the MCP server. Use HTTPS in production."
+                          >
+                            <input
+                              value={form.connection.url}
+                              onChange={(e) =>
+                                setForm({
+                                  ...form,
+                                  connection: { ...form.connection, url: e.target.value },
+                                })
+                              }
+                              placeholder="https://example.com/mcp"
+                            />
+                          </Field>
+                        )}
+                      </div>
+
+                      <div className="subpanel">
+                        <h3>Authentication</h3>
+                        <Field label="Authentication Type" required>
+                          <select
+                            value={form.authentication.type}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                authentication: {
+                                  ...form.authentication,
+                                  type: e.target.value,
+                                  credentialReference: "",
+                                },
+                              })
+                            }
+                          >
+                            <option value="oauth2">OAuth 2.0</option>
+                            <option value="apiKey">API Key</option>
+                            <option value="bearerToken">Bearer Token</option>
+                            <option value="none">None</option>
+                          </select>
+                        </Field>
+
+                        {form.authentication.type === "none" && (
+                          <div className="callout">
+                            No authentication selected. Ensure this endpoint is restricted by private network.
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {/* STEP 2: TOOLS & DISCOVERY */}
+                  {step === 2 && (() => {
+                    const previewTools = editing && selectedServerTools.length > 0
+                      ? selectedServerTools
+                      : [
+                          {
+                            name: "getCustomer",
+                            mcpToolId: `${form.mcpId || "mcp"}-get-customer`,
+                            description: "Retrieve customer details and account status.",
+                            status: "active",
+                            inputSchema: { properties: { customerId: { type: "string", description: "Customer unique ID" } } },
+                            configSchema: {
+                              properties: {
+                                includeInactive: { type: "boolean", description: "Include inactive accounts" },
+                                maxResults: { type: "number", description: "Batch fetch limit" },
+                              },
+                            },
+                          },
+                          {
+                            name: "getProduct",
+                            mcpToolId: `${form.mcpId || "mcp"}-get-product`,
+                            description: "Query catalog products, inventory levels, and pricing.",
+                            status: "active",
+                            inputSchema: { properties: { productCode: { type: "string", description: "Item SKU code" } } },
+                            configSchema: {
+                              properties: {
+                                warehouseId: { type: "string", description: "Target warehouse code" },
+                                maxResults: { type: "number", description: "Batch fetch limit" },
+                              },
+                            },
+                          },
+                        ];
+
+                    const selectedIds = form.selectedToolIds || [];
+                    const toggleToolSelection = (name) => {
+                      const isSel = selectedIds.includes(name);
+                      const updated = isSel
+                        ? selectedIds.filter((id) => id !== name)
+                        : [...selectedIds, name];
+                      setForm((f) => ({ ...f, selectedToolIds: updated }));
+                    };
+
+                    const selectAllTools = () => {
+                      setForm((f) => ({
+                        ...f,
+                        selectedToolIds:
+                          selectedIds.length === previewTools.length
+                            ? []
+                            : previewTools.map((t) => t.name),
+                      }));
+                    };
+
+                    return (
+                      <>
+                        <div className="stepheading">
+                          <h2>Tools & Discovery</h2>
+                          <p>
+                            Tools are discovered automatically from the MCP server endpoint. Select which tools to activate and configure their initial runtime settings.
+                          </p>
+                        </div>
+
+                        <div className="callout" style={{ background: "#f0fdf4", borderColor: "#bbf7d0", color: "#166534" }}>
+                          <ShieldCheck />
+                          <div>
+                            <b>Automatic Discovery:</b> When this server is registered, the platform probes <code>{form.connection.url || "endpoint"}</code> via MCP protocol to discover available tools and their parameter schemas.
+                          </div>
+                        </div>
+
+                        <div className="toolstephead">
+                          <Badge tone="info">
+                            {selectedIds.length} of {previewTools.length} Tools Selected
+                          </Badge>
+                          <span className="muted">
+                            Select tools to activate for this {form.scopeType === "platform" ? "platform" : "client"}
+                          </span>
+                          <button
+                            type="button"
+                            className="btn subtle small"
+                            onClick={selectAllTools}
+                          >
+                            {selectedIds.length === previewTools.length ? "Deselect All" : "Select All"}
+                          </button>
+                        </div>
+
+                        {previewTools.map((t) => {
+                          const isSelected = selectedIds.includes(t.name);
+                          const isConfigOpen = form.expandedConfigTool === t.name;
+                          const currentConfig = form.toolConfigsMap?.[t.name] || {};
+
+                          return (
+                            <div
+                              className={"wizardtool" + (isSelected ? " selected" : "")}
+                              key={t.mcpToolId}
+                            >
+                              <div className="wizardtoolhead">
+                                <button
+                                  type="button"
+                                  className={"tool-check-btn " + (isSelected ? "checked" : "")}
+                                  onClick={() => toggleToolSelection(t.name)}
+                                  title={isSelected ? "Deselect tool" : "Select tool"}
+                                >
+                                  <Check />
+                                </button>
+                                <div className="toolicon">
+                                  <Wrench />
+                                </div>
+                                <div className="toolname">
+                                  <b>{t.name}</b>
+                                  <small>ID: {t.mcpToolId} · {t.description}</small>
+                                </div>
+                                {isSelected && (
+                                  <Badge tone="success">Selected</Badge>
+                                )}
+                                {isSelected && (
+                                  <button
+                                    type="button"
+                                    className="btn secondary small"
+                                    onClick={() =>
+                                      setForm((f) => ({
+                                        ...f,
+                                        expandedConfigTool:
+                                          f.expandedConfigTool === t.name ? null : t.name,
+                                      }))
+                                    }
+                                  >
+                                    <Settings size={13} />{" "}
+                                    {isConfigOpen ? "Close Config" : "Configure Settings"}
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="schemaline">
+                                <span>
+                                  Input Parameters:{" "}
+                                  <b>{Object.keys(t.inputSchema.properties || {}).join(", ") || "none"}</b>
+                                </span>
+                                <span style={{ marginLeft: "12px" }}>
+                                  Configurable:{" "}
+                                  <b>{Object.keys(t.configSchema.properties || {}).join(", ") || "none"}</b>
+                                </span>
+                                {isSelected && Object.keys(currentConfig).length > 0 && (
+                                  <span style={{ marginLeft: "auto", color: "#166534", fontWeight: 600 }}>
+                                    ✓ Configured: {Object.entries(currentConfig).map(([k, v]) => `${k}: ${String(v)}`).join(", ")}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Inline Expandable Configuration Panel */}
+                              {isSelected && isConfigOpen && (
+                                <div className="wizardtool-config-panel">
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      alignItems: "center",
+                                      marginBottom: "10px",
+                                    }}
+                                  >
+                                    <b style={{ fontSize: "11px", color: "#1f2937" }}>
+                                      Runtime Configuration (
+                                      {form.scopeType === "platform"
+                                        ? "Platform Default"
+                                        : clients[form.clientId] || "Client"}
+                                      )
+                                    </b>
+                                    <small className="muted">
+                                      Customized settings for this scope
+                                    </small>
+                                  </div>
+
+                                  <div className="formgrid">
+                                    {Object.entries(t.configSchema.properties || {}).map(
+                                      ([propKey, propDef]) =>
+                                        propDef.type === "boolean" ? (
+                                          <div className="toggle-field-row" key={propKey}>
+                                            <div style={{ flex: 1 }}>
+                                              <span className="toggle-field-label">
+                                                {propKey}
+                                              </span>
+                                              {propDef.description && (
+                                                <span className="toggle-field-desc">
+                                                  {propDef.description}
+                                                </span>
+                                              )}
+                                            </div>
+                                            <Toggle
+                                              checked={Boolean(currentConfig[propKey])}
+                                              onChange={(val) => {
+                                                setForm((f) => ({
+                                                  ...f,
+                                                  toolConfigsMap: {
+                                                    ...f.toolConfigsMap,
+                                                    [t.name]: {
+                                                      ...(f.toolConfigsMap?.[t.name] || {}),
+                                                      [propKey]: val,
+                                                    },
+                                                  },
+                                                }));
+                                              }}
+                                              label={propKey}
+                                            />
+                                          </div>
+                                        ) : (
+                                          <Field
+                                            key={propKey}
+                                            label={propKey}
+                                            hint={propDef.description || `Type: ${propDef.type}`}
+                                          >
+                                            {propDef.type === "number" ? (
+                                              <input
+                                                type="number"
+                                                value={currentConfig[propKey] ?? 50}
+                                                onChange={(e) => {
+                                                  const val = Number(e.target.value);
+                                                  setForm((f) => ({
+                                                    ...f,
+                                                    toolConfigsMap: {
+                                                      ...f.toolConfigsMap,
+                                                      [t.name]: {
+                                                        ...(f.toolConfigsMap?.[t.name] || {}),
+                                                        [propKey]: val,
+                                                      },
+                                                    },
+                                                  }));
+                                                }}
+                                              />
+                                            ) : (
+                                              <input
+                                                value={currentConfig[propKey] ?? ""}
+                                                onChange={(e) => {
+                                                  const val = e.target.value;
+                                                  setForm((f) => ({
+                                                    ...f,
+                                                    toolConfigsMap: {
+                                                      ...f.toolConfigsMap,
+                                                      [t.name]: {
+                                                        ...(f.toolConfigsMap?.[t.name] || {}),
+                                                        [propKey]: val,
+                                                      },
+                                                    },
+                                                  }));
+                                                }}
+                                                placeholder={`Enter ${propKey}...`}
+                                              />
+                                            )}
+                                          </Field>
+                                        )
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </>
+                    );
+                  })()}
+
+                  {/* STEP 3: REVIEW & CREATE */}
+                  {step === 3 && (
+                    <>
+                      <div className="stepheading">
+                        <h2>Review & Create</h2>
+                        <p>Review the configuration before registering the server.</p>
+                      </div>
+
+                      <Review
+                        title="Server Identity & Scope"
+                        rows={[
+                          ["Name", form.name],
+                          ["MCP ID", form.mcpId],
+                          ["Description", form.description || "—"],
+                          [
+                            "Scope",
+                            form.scopeType === "platform"
+                              ? "Platform (Shared)"
+                              : `${clients[form.clientId]} (${form.clientId})`,
+                          ],
+                        ]}
+                        onEdit={() => setStep(0)}
+                      />
+
+                      <Review
+                        title="Connection & Authentication"
+                        rows={[
+                          ["Transport", pretty(form.connection.transport)],
+                          ["URL", form.connection.transport === "stdio" ? "Not applicable (stdio)" : form.connection.url],
+                          ["Authentication Type", pretty(form.authentication.type)],
+                        ]}
+                        onEdit={() => setStep(1)}
+                      />
+
+                      <Review
+                        title="Tools & Discovery"
+                        rows={[
+                          [
+                            "Selected Tools",
+                            `${(form.selectedToolIds || []).length} tools enabled`,
+                          ],
+                          [
+                            "Configured Settings",
+                            (form.selectedToolIds || []).length > 0
+                              ? (form.selectedToolIds || [])
+                                  .map((n) => {
+                                    const cfg = form.toolConfigsMap?.[n] || {};
+                                    const pairs = Object.entries(cfg)
+                                      .map(([k, v]) => `${k}: ${v}`)
+                                      .join(", ");
+                                    return `${n} (${pairs || "default"})`;
+                                  })
+                                  .join(" · ")
+                              : "No tools selected",
+                          ],
+                          ["Discovery Handshake", "Automatic endpoint discovery enabled"],
+                        ]}
+                        onEdit={() => setStep(2)}
+                      />
+
+                      <div className="callout">
+                        <ShieldCheck /> Mock prototype: Stores mock state in memory. No network connection is initiated.
+                      </div>
+                    </>
+                  )}
+
+                  {/* Actions */}
+                  <div className="wizardactions">
+                    <button
+                      className="btn secondary"
+                      onClick={() =>
+                        step === 0 ? setPage(editing ? "details" : "list") : setStep(step - 1)
+                      }
+                    >
+                      {step === 0 ? "Cancel" : <><ChevronLeft /> Previous</>}
+                    </button>
+                    <span className="grow" />
+                    <small>Step {step + 1} of 4</small>
+                    {step < 3 ? (
+                      <button className="btn primary" onClick={next}>
+                        Save & Continue <ArrowRight />
+                      </button>
+                    ) : (
+                      <button className="btn primary" onClick={save}>
+                        {editing ? "Save Changes" : "Register MCP Server"} <Check />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
+        </main>
+      </div>
+
+      {/* Footer */}
+      <footer className="footer">
+        iNextLabs Management Portal · AI Services / MCP Servers
+      </footer>
+
+      {/* MODAL 1: TOOL DETAILS & RUNTIME CONFIGURE MODAL (MAJOR UPDATE) */}
+      {selectedTool && (
+        <ToolModal
+          tool={selectedTool}
+          server={selected}
+          toolConfigs={toolConfigs}
+          setToolConfigs={setToolConfigs}
+          activeTab={toolModalTab}
+          setActiveTab={setToolModalTab}
+          onClose={() => setSelectedTool(null)}
+          onNotice={(msg) => setNotice(msg)}
+          onLog={log}
+        />
+      )}
+
+      {/* MODAL 2: DELETE CONFIRMATION */}
+      {(confirm || deleteTarget) && (
+        <div className="backdrop" onClick={() => { setConfirm(false); setDeleteTarget(null); }}>
+          <div className="confirm" onClick={(e) => e.stopPropagation()}>
+            <div className="dangerico">
+              <AlertCircle />
+            </div>
+            <h2>Delete MCP Server?</h2>
+            <p>
+              This removes <b>{(deleteTarget || selected)?.name}</b> from the local registry.
+            </p>
+            <div className="confirmactions">
+              <button
+                className="btn secondary"
+                onClick={() => {
+                  setConfirm(false);
+                  setDeleteTarget(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn danger"
+                onClick={() => {
+                  const targetId = deleteTarget ? deleteTarget._id : selectedId;
+                  const targetName = (deleteTarget || selected)?.name;
+                  setServers((old) => old.filter((s) => s._id !== targetId));
+                  setConfirm(false);
+                  setDeleteTarget(null);
+                  if (page === "details" && selectedId === targetId) {
+                    setPage("list");
+                  }
+                  setNotice(`MCP Server "${targetName}" removed from registry.`);
+                }}
+              >
+                Delete Server
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------------------
+// COMPONENT: ToolModal (Updated for InputSchema vs ConfigSchema & Scoped mcptoolconfigs)
+// -----------------------------------------------------------------------------------------
+function ToolModal({
+  tool,
+  server,
+  toolConfigs,
+  setToolConfigs,
+  activeTab,
+  setActiveTab,
+  onClose,
+  onNotice,
+  onLog,
+}) {
+  // Existing configs for this tool
+  const existingClientConfig = toolConfigs.find(
+    (c) => c.mcpToolId === tool.mcpToolId && c.scope.type === "client"
+  );
+  const existingAgentConfig = toolConfigs.find(
+    (c) => c.mcpToolId === tool.mcpToolId && c.scope.type === "agent"
+  );
+
+  // Scope picker inside modal: "client", "agent"
+  const [selectedScope, setSelectedScope] = useState(existingAgentConfig ? "agent" : "client");
+
+  // State for config fields being edited
+  const getInitialValues = (scopeType) => {
+    const target = scopeType === "agent" ? existingAgentConfig : existingClientConfig;
+    if (target?.config) return { ...target.config };
+    // fallback to defaults from configSchema
+    const def = {};
+    Object.entries(tool.configSchema.properties || {}).forEach(([k, s]) => {
+      def[k] = s.type === "boolean" ? false : s.type === "number" ? 50 : "";
+    });
+    return def;
+  };
+
+  const [formConfig, setFormConfig] = useState(() => getInitialValues("client"));
+
+  // Switch scope
+  const handleScopeChange = (newScope) => {
+    setSelectedScope(newScope);
+    setFormConfig(getInitialValues(newScope));
+  };
+
+  // Save runtime config for the chosen scope
+  const handleSaveConfig = () => {
+    const isAgent = selectedScope === "agent";
+    const configId = isAgent
+      ? existingAgentConfig?._id || `mcptoolconfig-${Date.now()}`
+      : existingClientConfig?._id || `mcptoolconfig-${Date.now()}`;
+
+    const newRecord = {
+      _id: configId,
+      mcpToolConfigId: isAgent
+        ? `${tool.mcpToolId}-sales-agent`
+        : `${tool.mcpToolId}-${server.scope.clientId || "client-123"}`,
+      mcpId: tool.mcpId,
+      mcpToolId: tool.mcpToolId,
+      scope: isAgent
+        ? {
+            type: "agent",
+            clientId: server.scope.clientId || "client-123",
+            botId: "sales-bot",
+            agentId: "sales-agent",
+          }
+        : {
+            type: "client",
+            clientId: server.scope.clientId || "client-123",
+          },
+      schemaVersion: tool.schemaVersion,
+      version: 1,
+      config: { ...formConfig },
+      status: "active",
+      createdAt: "2026-10-13T09:00:00Z",
+      updatedAt: "Just now",
+    };
+
+    setToolConfigs((old) => {
+      const exists = old.some((c) => c._id === configId);
+      return exists ? old.map((c) => (c._id === configId ? newRecord : c)) : [newRecord, ...old];
+    });
+
+    onNotice(
+      `Saved ${isAgent ? "Agent-level override" : "Client-level default"} config for ${tool.name}.`
+    );
+    onLog(
+      "Runtime Config Saved",
+      `Saved ${isAgent ? "agent: sales-agent override" : "client default"} in clientConfigDb.mcptoolconfigs.`
+    );
+    onClose();
+  };
+
+  const isUnavailable = tool.status === "unavailable";
+  const isFlaggedInAllowlist =
+    isUnavailable && tool.agentAllowlists && tool.agentAllowlists.length > 0;
+
+  return (
+    <div className="backdrop">
+      <div className="toolmodal" style={{ maxWidth: "800px" }}>
+        {/* Modal Header */}
+        <div className="modalhead">
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <h2>{tool.name}</h2>
+              <Status value={tool.status} />
+              <Badge tone="neutral">v{tool.schemaVersion}</Badge>
+            </div>
+            <p>
+              mcpToolId: <code>{tool.mcpToolId}</code> · Advertised on <code>{tool.mcpId}</code>
+            </p>
+          </div>
+          <button className="icon" onClick={onClose}>
+            <X />
+          </button>
+        </div>
+
+        {/* Modal Tabs: Discovered Schemas vs Runtime Config */}
+        <div className="scope-tabs" style={{ margin: "14px 20px 0" }}>
+          <button
+            className={"scope-tab " + (activeTab === "schemas" ? "active" : "")}
+            onClick={() => setActiveTab("schemas")}
+          >
+            <BookOpenIcon /> 1. Discovered Schemas (Input & Config)
+          </button>
+          <button
+            className={"scope-tab " + (activeTab === "config" ? "active" : "")}
+            onClick={() => setActiveTab("config")}
+          >
+            <Settings /> 2. Runtime Configuration & Scopes
+          </button>
+        </div>
+
+        {/* Modal Body */}
+        <div style={{ padding: "18px 20px" }}>
+          {/* TAB 1: SCHEMAS (INPUT SCHEMA vs CONFIG SCHEMA) */}
+          {activeTab === "schemas" && (
+            <div>
+              {/* Unavailable / Allowlist Flag Warning */}
+              {isFlaggedInAllowlist && (
+                <div
+                  className="callout"
+                  style={{
+                    background: "#fffbeb",
+                    borderColor: "#fde68a",
+                    color: "#92400e",
+                    marginBottom: "14px",
+                  }}
+                >
+                  <AlertCircle size={16} />
+                  <div>
+                    <strong style={{ display: "block", marginBottom: "2px" }}>
+                      Tool Unavailable & Referenced in Allowlist
+                    </strong>
+                    <span>
+                      Referenced by Agent allowlist: <b>{tool.agentAllowlists.join(", ")}</b>. Remove this tool from Agent allowlists to avoid execution runtime errors.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <p className="muted" style={{ marginBottom: "14px" }}>
+                Distinguishes tool input arguments accepted by the server from integration settings configured by administrators.
+              </p>
+
+              {/* 1. Input Schema */}
+              <div className="schema-section">
+                <h4>
+                  <Tag size={14} color="#2563eb" /> Input Schema (Parameters sent by AI Agent at runtime)
+                </h4>
+                <p className="muted" style={{ marginBottom: "8px" }}>
+                  Payload schema accepted by <code>{tool.name}</code> when invoked by LLMs:
+                </p>
+                <div>
+                  {Object.entries(tool.inputSchema.properties || {}).map(([k, s]) => (
+                    <div className="schema-pill" key={k}>
+                      <b>{k}</b>
+                      <em>({s.type})</em>
+                      {tool.inputSchema.required?.includes(k) && (
+                        <span className="req-star" title="Required parameter">
+                          *required
+                        </span>
+                      )}
+                      {s.description && <span>— {s.description}</span>}
+                    </div>
+                  ))}
+                  {!Object.keys(tool.inputSchema.properties || {}).length && (
+                    <small className="muted">No input parameters required.</small>
+                  )}
+                </div>
+              </div>
+
+              {/* 2. Config Schema */}
+              <div className="schema-section">
+                <h4>
+                  <Settings size={14} color="#f4513b" /> Config Schema (Integration Settings)
+                </h4>
+                <p className="muted" style={{ marginBottom: "8px" }}>
+                  Parameters available for tenant or agent runtime customization:
+                </p>
+                <div>
+                  {Object.entries(tool.configSchema.properties || {}).map(([k, s]) => (
+                    <div className="schema-pill" key={k}>
+                      <b>{k}</b>
+                      <em>({s.type})</em>
+                      {tool.configSchema.required?.includes(k) && (
+                        <span className="req-star" title="Required config field">
+                          *required
+                        </span>
+                      )}
+                      {s.description && <span>— {s.description}</span>}
+                    </div>
+                  ))}
+                  {!Object.keys(tool.configSchema.properties || {}).length && (
+                    <small className="muted">No configurable parameters.</small>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <small className="muted">
+                  Last discovered at: {tool.lastDiscoveredAt} · schemaVersion: {tool.schemaVersion}
+                </small>
+                <button className="btn primary" onClick={() => setActiveTab("config")}>
+                  Proceed to Runtime Config <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: RUNTIME CONFIGURATION */}
+          {activeTab === "config" && (
+            <div>
+              <p className="muted" style={{ marginBottom: "12px" }}>
+                Configure integration parameters for clients or override settings for specific agents.
+              </p>
+
+              {/* Scope Picker: Client Level vs Agent Override */}
+              <Field label="Configuration Target Scope" hint="Select scope level to edit or override">
+                <div className="scope-tabs" style={{ margin: "4px 0 12px" }}>
+                  <button
+                    type="button"
+                    className={"scope-tab " + (selectedScope === "client" ? "active" : "")}
+                    onClick={() => handleScopeChange("client")}
+                  >
+                    🏢 Client Default ({server.scope.clientId || "client-123"})
+                  </button>
+                  <button
+                    type="button"
+                    className={"scope-tab " + (selectedScope === "agent" ? "active" : "")}
+                    onClick={() => handleScopeChange("agent")}
+                  >
+                    🤖 Agent Override (sales-agent)
+                  </button>
+                </div>
+              </Field>
+
+              {selectedScope === "agent" && (
+                <div
+                  className="callout"
+                  style={{
+                    background: "#fbf5ff",
+                    borderColor: "#e9d5ff",
+                    color: "#6b21a8",
+                    marginBottom: "14px",
+                  }}
+                >
+                  <Bot size={16} />
+                  <div>
+                    <b>Agent-level Override Active:</b> Settings here will strictly override the Client default when <code>sales-agent</code> (Bot: <code>sales-bot</code>) invokes this tool.
+                  </div>
+                </div>
+              )}
+
+              {/* Dynamically Rendered Form Controls based on configSchema */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {Object.entries(tool.configSchema.properties || {}).map(([propKey, propDef]) =>
+                  propDef.type === "boolean" ? (
+                    <div className="toggle-field-row" key={propKey}>
+                      <div style={{ flex: 1 }}>
+                        <span className="toggle-field-label">
+                          {propKey}
+                          {tool.configSchema.required?.includes(propKey) && (
+                            <b className="req"> *</b>
+                          )}
+                        </span>
+                        {propDef.description && (
+                          <span className="toggle-field-desc">{propDef.description}</span>
+                        )}
+                      </div>
+                      <Toggle
+                        checked={Boolean(formConfig[propKey])}
+                        onChange={(v) =>
+                          setFormConfig((prev) => ({ ...prev, [propKey]: v }))
+                        }
+                        label={propKey}
+                      />
+                    </div>
+                  ) : (
+                    <Field
+                      key={propKey}
+                      label={propKey}
+                      required={tool.configSchema.required?.includes(propKey)}
+                      hint={propDef.description || `Data type: ${propDef.type}`}
+                    >
+                      {propDef.type === "number" ? (
+                        <input
+                          type="number"
+                          value={formConfig[propKey] ?? 0}
+                          onChange={(e) =>
+                            setFormConfig((prev) => ({
+                              ...prev,
+                              [propKey]: Number(e.target.value),
+                            }))
+                          }
+                        />
+                      ) : (
+                        <input
+                          value={formConfig[propKey] ?? ""}
+                          onChange={(e) =>
+                            setFormConfig((prev) => ({
+                              ...prev,
+                              [propKey]: e.target.value,
+                            }))
+                          }
+                          placeholder={`Enter ${propKey}...`}
+                        />
+                      )}
+                    </Field>
+                  )
+                )}
+
+                {!Object.keys(tool.configSchema.properties || {}).length && (
+                  <div className="empty">
+                    <b>No Config Parameters</b>
+                    <p>This tool does not define any configurable settings.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Scope Precedence Notice */}
+              <div className="precedence-line">
+                <InfoIcon size={14} />
+                <span>
+                  Suggested Precedence: <b>Agent Override</b> &rarr; <b>Bot</b> &rarr; <b>Client Default</b> &rarr; <b>Platform</b>
+                </span>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="modalactions" style={{ marginTop: "18px" }}>
+                <button className="btn secondary" onClick={onClose}>
+                  Cancel
+                </button>
+                <span className="grow" />
+                <button className="btn primary" onClick={handleSaveConfig}>
+                  <Check size={14} /> Save {selectedScope === "agent" ? "Agent Override" : "Client Config"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BookOpenIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  );
+}
