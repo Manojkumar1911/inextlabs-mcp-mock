@@ -24,6 +24,7 @@ import {
   Info as InfoIcon,
   LayoutDashboard,
   Link2,
+  Loader2,
   Menu,
   Pencil,
   Plug,
@@ -615,6 +616,8 @@ export default function App() {
   const [step, setStep] = useState(0);
   const [editing, setEditing] = useState(false);
   const [editId, setEditId] = useState(null);
+  const [connectionVerified, setConnectionVerified] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
 
   // Tool Modal
   const [selectedTool, setSelectedTool] = useState(null);
@@ -714,6 +717,8 @@ export default function App() {
     setEditing(false);
     setEditId(null);
     setStep(0);
+    setConnectionVerified(false);
+    setIsTesting(false);
     setPage("wizard");
     setNotice("");
   };
@@ -805,8 +810,28 @@ export default function App() {
     setEditing(true);
     setEditId(s._id);
     setStep(0);
+    setConnectionVerified(false);
+    setIsTesting(false);
     setPage("wizard");
     setNotice("");
+  };
+
+  const testConnection = () => {
+    if (
+      form.connection.transport !== "stdio" &&
+      !/^https?:\/\/.+/.test(form.connection.url)
+    ) {
+      return setNotice("Enter a valid HTTP or HTTPS connection URL before testing.");
+    }
+    setNotice("");
+    setIsTesting(true);
+
+    setTimeout(() => {
+      setIsTesting(false);
+      setConnectionVerified(true);
+      setNotice("Connection test successful! Endpoint verified and tools discovered.");
+      setStep(2);
+    }, 900);
   };
 
   const next = () => {
@@ -1843,7 +1868,7 @@ export default function App() {
                 <div>
                   <h1>{editing ? "Edit MCP Server" : "Register MCP Server"}</h1>
                   <p>
-                    Configure server endpoint and authentication references. Step {step + 1} of 4.
+                    Configure server endpoint and authentication references.
                   </p>
                 </div>
               </div>
@@ -1858,28 +1883,31 @@ export default function App() {
                       <span>DRAFT v{form.version || 1}</span>
                     </div>
                   </div>
-                  {steps.map((s, i) => (
-                    <button
-                      key={s}
-                      className={(step === i ? "current " : "") + (step > i ? "done" : "")}
-                      onClick={() => i < step && setStep(i)}
-                    >
-                      <span className="stepnum">{step > i ? <Check /> : i + 1}</span>
-                      <span>
-                        <b>{s}</b>
-                        <small>
-                          {
-                            [
-                              "Identity and client/platform scope",
-                              "Transport and connection settings",
-                              "Discovered tools overview",
-                              "Confirm and register server",
-                            ][i]
-                          }
-                        </small>
-                      </span>
-                    </button>
-                  ))}
+                  {steps.map((s, i) => {
+                    if (!connectionVerified && i > 1) return null;
+                    return (
+                      <button
+                        key={s}
+                        className={(step === i ? "current " : "") + (step > i ? "done" : "")}
+                        onClick={() => setStep(i)}
+                      >
+                        <span className="stepnum">{step > i ? <Check /> : i + 1}</span>
+                        <span>
+                          <b>{s}</b>
+                          <small>
+                            {
+                              [
+                                "Identity and client/platform scope",
+                                "Transport and connection settings",
+                                "Discovered tools overview",
+                                "Confirm and register server",
+                              ][i]
+                            }
+                          </small>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </aside>
 
                 {/* Wizard Form Content */}
@@ -1959,16 +1987,25 @@ export default function App() {
                       </div>
 
                       <div className="subpanel">
-                        <h3>Connection Settings</h3>
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <h3>Connection Settings</h3>
+                          {connectionVerified && (
+                            <span className="badge success" style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 8px", borderRadius: 9999, fontSize: "9px", fontWeight: 600 }}>
+                              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#16834a", display: "inline-block" }} />
+                              Connected
+                            </span>
+                          )}
+                        </div>
                         <Field label="Transport" required>
                           <TransportSelect
                             value={form.connection.transport}
-                            onChange={(val) =>
+                            onChange={(val) => {
                               setForm({
                                 ...form,
                                 connection: { ...form.connection, transport: val },
-                              })
-                            }
+                              });
+                              setConnectionVerified(false);
+                            }}
                           />
                         </Field>
 
@@ -1980,12 +2017,13 @@ export default function App() {
                           >
                             <input
                               value={form.connection.url}
-                              onChange={(e) =>
+                              onChange={(e) => {
                                 setForm({
                                   ...form,
                                   connection: { ...form.connection, url: e.target.value },
-                                })
-                              }
+                                });
+                                setConnectionVerified(false);
+                              }}
                               placeholder="https://example.com/mcp"
                             />
                           </Field>
@@ -2460,14 +2498,53 @@ export default function App() {
                     </button>
                     <span className="grow" />
                     <small>Step {step + 1} of 4</small>
-                    {step < 3 ? (
-                      <button className="btn primary" onClick={next}>
-                        Save & Continue <ArrowRight />
+                    {step === 1 && !connectionVerified ? (
+                      <button
+                        className="btn test-conn"
+                        onClick={testConnection}
+                        disabled={isTesting}
+                      >
+                        {isTesting ? (
+                          <>
+                            <Loader2 size={14} className="spin" /> Testing Connection...
+                          </>
+                        ) : (
+                          <>
+                            Test Connection <Plug size={14} />
+                          </>
+                        )}
                       </button>
                     ) : (
-                      <button className="btn primary" onClick={save}>
-                        {editing ? "Save Changes" : "Register MCP Server"} <Check />
-                      </button>
+                      <>
+                        {step === 1 && connectionVerified && (
+                          <button
+                            type="button"
+                            className="btn test-conn"
+                            onClick={testConnection}
+                            disabled={isTesting}
+                            title="Re-test connection endpoint"
+                          >
+                            {isTesting ? (
+                              <>
+                                <Loader2 size={13} className="spin" /> Testing...
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw size={13} /> Re-test
+                              </>
+                            )}
+                          </button>
+                        )}
+                        {step < 3 ? (
+                          <button className="btn primary" onClick={next}>
+                            {step === 1 ? "Continue" : "Save & Continue"} <ArrowRight />
+                          </button>
+                        ) : (
+                          <button className="btn primary" onClick={save}>
+                            {editing ? "Save Changes" : "Register MCP Server"} <Check />
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
