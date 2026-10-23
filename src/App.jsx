@@ -1172,22 +1172,6 @@ export default function App() {
                     <option value="sse">SSE</option>
                     <option value="stdio">STDIO</option>
                   </select>
-                  <div className="view">
-                    <button
-                      className={view === "cards" ? "chosen" : ""}
-                      onClick={() => setView("cards")}
-                      title="Cards View"
-                    >
-                      <LayoutDashboard />
-                    </button>
-                    <button
-                      className={view === "table" ? "chosen" : ""}
-                      onClick={() => setView("table")}
-                      title="Table View"
-                    >
-                      <Filter />
-                    </button>
-                  </div>
                 </div>
 
                 {/* Cards View */}
