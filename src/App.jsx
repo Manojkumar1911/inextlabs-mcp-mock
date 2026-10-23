@@ -1584,7 +1584,7 @@ export default function App() {
                         <div>
                           <h2>Discovered Tools</h2>
                           <p>
-                            Tools advertised by <code>{selected.name}</code>. Tools define input parameters, and runtime settings can be customized per client or agent.
+                            Tools advertised by <code>{selected.name}</code> with their schemas and operational status.
                           </p>
                         </div>
                         <button className="btn secondary" onClick={syncTools}>
@@ -1609,8 +1609,6 @@ export default function App() {
                               <th>DESCRIPTION</th>
                               <th>STATUS</th>
                               <th>INPUT SCHEMA</th>
-                              <th>CONFIG SCHEMA</th>
-                              <th>ACTIVE CONFIG SCOPES</th>
                               <th>ACTIONS</th>
                             </tr>
                           </thead>
@@ -1622,10 +1620,6 @@ export default function App() {
                                   .includes(toolSearch.toLowerCase())
                               )
                               .map((t) => {
-                                const configs = toolConfigs.filter((c) => c.mcpToolId === t.mcpToolId);
-                                const agentOverrides = configs.filter((c) => c.scope.type === "agent");
-                                const clientConfigs = configs.filter((c) => c.scope.type === "client");
-
                                 const isUnavailable = t.status === "unavailable";
                                 const isFlaggedInAllowlist =
                                   isUnavailable && t.agentAllowlists && t.agentAllowlists.length > 0;
@@ -1670,50 +1664,14 @@ export default function App() {
                                         )}
                                       </div>
                                     </td>
-                                    {/* Config Schema Preview */}
-                                    <td>
-                                      <div className="chips">
-                                        {Object.entries(t.configSchema.properties || {}).map(
-                                          ([k, v]) => (
-                                            <span key={k} title={v.description || k}>
-                                              {k} <em>({v.type})</em>
-                                            </span>
-                                          )
-                                        )}
-                                        {!Object.keys(t.configSchema.properties || {}).length && (
-                                          <small style={{ color: "#8a92a0" }}>None</small>
-                                        )}
-                                      </div>
-                                    </td>
-                                    {/* Runtime Config Scopes */}
-                                    <td>
-                                      <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                                        {clientConfigs.length > 0 && (
-                                          <span style={{ fontSize: "9.5px", color: "#166534" }}>
-                                            ✓ Client Default ({clientConfigs[0].scope.clientId})
-                                          </span>
-                                        )}
-                                        {agentOverrides.length > 0 ? (
-                                          <Badge tone="purple">
-                                            {agentOverrides.length} Agent Override
-                                            {agentOverrides.length > 1 ? "s" : ""}
-                                          </Badge>
-                                        ) : (
-                                          <span style={{ fontSize: "9px", color: "#8a92a0" }}>
-                                            No agent override
-                                          </span>
-                                        )}
-                                      </div>
-                                    </td>
                                     <td>
                                       <button
                                         className="btn secondary small"
                                         onClick={() => {
                                           setSelectedTool(t);
-                                          setToolModalTab("schemas");
                                         }}
                                       >
-                                        View Details & Configure
+                                        View Details
                                       </button>
                                     </td>
                                   </tr>
@@ -2554,18 +2512,12 @@ export default function App() {
         </main>
       </div>
 
-      {/* MODAL 1: TOOL DETAILS & RUNTIME CONFIGURE MODAL (MAJOR UPDATE) */}
+      {/* MODAL 1: TOOL DETAILS MODAL (Read-Only Tool Inspector) */}
       {selectedTool && (
         <ToolModal
           tool={selectedTool}
           server={selected}
-          toolConfigs={toolConfigs}
-          setToolConfigs={setToolConfigs}
-          activeTab={toolModalTab}
-          setActiveTab={setToolModalTab}
           onClose={() => setSelectedTool(null)}
-          onNotice={(msg) => setNotice(msg)}
-          onLog={log}
         />
       )}
 
@@ -2696,360 +2648,204 @@ export default function App() {
 function ToolModal({
   tool,
   server,
-  toolConfigs,
-  setToolConfigs,
-  activeTab,
-  setActiveTab,
   onClose,
-  onNotice,
-  onLog,
 }) {
-  // Existing configs for this tool
-  const existingClientConfig = toolConfigs.find(
-    (c) => c.mcpToolId === tool.mcpToolId && c.scope.type === "client"
-  );
-  const existingAgentConfig = toolConfigs.find(
-    (c) => c.mcpToolId === tool.mcpToolId && c.scope.type === "agent"
-  );
-
-  // Scope picker inside modal: "client", "agent"
-  const [selectedScope, setSelectedScope] = useState(existingAgentConfig ? "agent" : "client");
-
-  // State for config fields being edited
-  const getInitialValues = (scopeType) => {
-    const target = scopeType === "agent" ? existingAgentConfig : existingClientConfig;
-    if (target?.config) return { ...target.config };
-    // fallback to defaults from configSchema
-    const def = {};
-    Object.entries(tool.configSchema.properties || {}).forEach(([k, s]) => {
-      def[k] = s.type === "boolean" ? false : s.type === "number" ? 50 : "";
-    });
-    return def;
-  };
-
-  const [formConfig, setFormConfig] = useState(() => getInitialValues("client"));
-
-  // Switch scope
-  const handleScopeChange = (newScope) => {
-    setSelectedScope(newScope);
-    setFormConfig(getInitialValues(newScope));
-  };
-
-  // Save runtime config for the chosen scope
-  const handleSaveConfig = () => {
-    const isAgent = selectedScope === "agent";
-    const configId = isAgent
-      ? existingAgentConfig?._id || `mcptoolconfig-${Date.now()}`
-      : existingClientConfig?._id || `mcptoolconfig-${Date.now()}`;
-
-    const newRecord = {
-      _id: configId,
-      mcpToolConfigId: isAgent
-        ? `${tool.mcpToolId}-sales-agent`
-        : `${tool.mcpToolId}-${server.scope.clientId || "client-123"}`,
-      mcpId: tool.mcpId,
-      mcpToolId: tool.mcpToolId,
-      scope: isAgent
-        ? {
-            type: "agent",
-            clientId: server.scope.clientId || "client-123",
-            botId: "sales-bot",
-            agentId: "sales-agent",
-          }
-        : {
-            type: "client",
-            clientId: server.scope.clientId || "client-123",
-          },
-      schemaVersion: tool.schemaVersion,
-      version: 1,
-      config: { ...formConfig },
-      status: "active",
-      createdAt: "2026-10-13T09:00:00Z",
-      updatedAt: "Just now",
-    };
-
-    setToolConfigs((old) => {
-      const exists = old.some((c) => c._id === configId);
-      return exists ? old.map((c) => (c._id === configId ? newRecord : c)) : [newRecord, ...old];
-    });
-
-    onNotice(
-      `Saved ${isAgent ? "Agent-level override" : "Client-level default"} config for ${tool.name}.`
-    );
-    onLog(
-      "Runtime Config Saved",
-      `Saved ${isAgent ? "agent: sales-agent override" : "client default"} in clientConfigDb.mcptoolconfigs.`
-    );
-    onClose();
-  };
-
   const isUnavailable = tool.status === "unavailable";
   const isFlaggedInAllowlist =
     isUnavailable && tool.agentAllowlists && tool.agentAllowlists.length > 0;
+  const paramEntries = Object.entries(tool.inputSchema?.properties || {});
+  const requiredList = tool.inputSchema?.required || [];
 
   return (
-    <div className="backdrop">
-      <div className="toolmodal" style={{ maxWidth: "800px" }}>
+    <div className="backdrop" onClick={onClose}>
+      <div className="toolmodal" style={{ maxWidth: "720px" }} onClick={(e) => e.stopPropagation()}>
         {/* Modal Header */}
         <div className="modalhead">
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <h2>{tool.name}</h2>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+              <h2 style={{ margin: 0 }}>{tool.name}</h2>
               <Status value={tool.status} />
-              <Badge tone="neutral">v{tool.schemaVersion}</Badge>
+              {tool.schemaVersion && (
+                <Badge tone="neutral">v{tool.schemaVersion}</Badge>
+              )}
             </div>
-            <p>
-              mcpToolId: <code>{tool.mcpToolId}</code> · Advertised on <code>{tool.mcpId}</code>
+            <p style={{ marginTop: "4px", fontSize: "10.5px", color: "#64748b" }}>
+              Tool ID: <code style={{ fontSize: "10.5px" }}>{tool.mcpToolId}</code>
+              {server?.name && (
+                <> · Server: <b>{server.name}</b> (<code style={{ fontSize: "10px" }}>{tool.mcpId}</code>)</>
+              )}
             </p>
           </div>
-          <button className="icon" onClick={onClose}>
-            <X />
-          </button>
-        </div>
-
-        {/* Modal Tabs: Discovered Schemas vs Runtime Config */}
-        <div className="scope-tabs" style={{ margin: "14px 20px 0" }}>
-          <button
-            className={"scope-tab " + (activeTab === "schemas" ? "active" : "")}
-            onClick={() => setActiveTab("schemas")}
-          >
-            <BookOpenIcon /> 1. Discovered Schemas (Input & Config)
-          </button>
-          <button
-            className={"scope-tab " + (activeTab === "config" ? "active" : "")}
-            onClick={() => setActiveTab("config")}
-          >
-            <Settings /> 2. Runtime Configuration & Scopes
+          <button className="icon" onClick={onClose} title="Close">
+            <X size={16} />
           </button>
         </div>
 
         {/* Modal Body */}
-        <div style={{ padding: "18px 20px" }}>
-          {/* TAB 1: SCHEMAS (INPUT SCHEMA vs CONFIG SCHEMA) */}
-          {activeTab === "schemas" && (
-            <div>
-              {/* Unavailable / Allowlist Flag Warning */}
-              {isFlaggedInAllowlist && (
-                <div
-                  className="callout"
-                  style={{
-                    background: "#fffbeb",
-                    borderColor: "#fde68a",
-                    color: "#92400e",
-                    marginBottom: "14px",
-                  }}
-                >
-                  <AlertCircle size={16} />
-                  <div>
-                    <strong style={{ display: "block", marginBottom: "2px" }}>
-                      Tool Unavailable & Referenced in Allowlist
-                    </strong>
-                    <span>
-                      Referenced by Agent allowlist: <b>{tool.agentAllowlists.join(", ")}</b>. Remove this tool from Agent allowlists to avoid execution runtime errors.
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              <p className="muted" style={{ marginBottom: "14px" }}>
-                Distinguishes tool input arguments accepted by the server from integration settings configured by administrators.
-              </p>
-
-              {/* 1. Input Schema */}
-              <div className="schema-section">
-                <h4>
-                  <Tag size={14} color="#2563eb" /> Input Schema (Parameters sent by AI Agent at runtime)
-                </h4>
-                <p className="muted" style={{ marginBottom: "8px" }}>
-                  Payload schema accepted by <code>{tool.name}</code> when invoked by LLMs:
-                </p>
-                <div>
-                  {Object.entries(tool.inputSchema.properties || {}).map(([k, s]) => (
-                    <div className="schema-pill" key={k}>
-                      <b>{k}</b>
-                      <em>({s.type})</em>
-                      {tool.inputSchema.required?.includes(k) && (
-                        <span className="req-star" title="Required parameter">
-                          *required
-                        </span>
-                      )}
-                      {s.description && <span>— {s.description}</span>}
-                    </div>
-                  ))}
-                  {!Object.keys(tool.inputSchema.properties || {}).length && (
-                    <small className="muted">No input parameters required.</small>
-                  )}
-                </div>
-              </div>
-
-              {/* 2. Config Schema */}
-              <div className="schema-section">
-                <h4>
-                  <Settings size={14} color="#f4513b" /> Config Schema (Integration Settings)
-                </h4>
-                <p className="muted" style={{ marginBottom: "8px" }}>
-                  Parameters available for tenant or agent runtime customization:
-                </p>
-                <div>
-                  {Object.entries(tool.configSchema.properties || {}).map(([k, s]) => (
-                    <div className="schema-pill" key={k}>
-                      <b>{k}</b>
-                      <em>({s.type})</em>
-                      {tool.configSchema.required?.includes(k) && (
-                        <span className="req-star" title="Required config field">
-                          *required
-                        </span>
-                      )}
-                      {s.description && <span>— {s.description}</span>}
-                    </div>
-                  ))}
-                  {!Object.keys(tool.configSchema.properties || {}).length && (
-                    <small className="muted">No configurable parameters.</small>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <small className="muted">
-                  Last discovered at: {tool.lastDiscoveredAt} · schemaVersion: {tool.schemaVersion}
-                </small>
-                <button className="btn primary" onClick={() => setActiveTab("config")}>
-                  Proceed to Runtime Config <ArrowRight size={14} />
-                </button>
-              </div>
+        <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+          {/* Tool Description */}
+          {tool.description && (
+            <div style={{ fontSize: "11.5px", color: "#334155", lineHeight: "1.55", background: "#f8fafc", padding: "10px 12px", borderRadius: "7px", border: "1px solid #e2e8f0" }}>
+              {tool.description}
             </div>
           )}
 
-          {/* TAB 2: RUNTIME CONFIGURATION */}
-          {activeTab === "config" && (
-            <div>
-              <p className="muted" style={{ marginBottom: "12px" }}>
-                Configure integration parameters for clients or override settings for specific agents.
-              </p>
-
-              {/* Scope Picker: Client Level vs Agent Override */}
-              <Field label="Configuration Target Scope" hint="Select scope level to edit or override">
-                <div className="scope-tabs" style={{ margin: "4px 0 12px" }}>
-                  <button
-                    type="button"
-                    className={"scope-tab " + (selectedScope === "client" ? "active" : "")}
-                    onClick={() => handleScopeChange("client")}
-                  >
-                    🏢 Client Default ({server.scope.clientId || "client-123"})
-                  </button>
-                  <button
-                    type="button"
-                    className={"scope-tab " + (selectedScope === "agent" ? "active" : "")}
-                    onClick={() => handleScopeChange("agent")}
-                  >
-                    🤖 Agent Override (sales-agent)
-                  </button>
-                </div>
-              </Field>
-
-              {selectedScope === "agent" && (
-                <div
-                  className="callout"
-                  style={{
-                    background: "#fbf5ff",
-                    borderColor: "#e9d5ff",
-                    color: "#6b21a8",
-                    marginBottom: "14px",
-                  }}
-                >
-                  <Bot size={16} />
-                  <div>
-                    <b>Agent-level Override Active:</b> Settings here will strictly override the Client default when <code>sales-agent</code> (Bot: <code>sales-bot</code>) invokes this tool.
-                  </div>
-                </div>
-              )}
-
-              {/* Dynamically Rendered Form Controls based on configSchema */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {Object.entries(tool.configSchema.properties || {}).map(([propKey, propDef]) =>
-                  propDef.type === "boolean" ? (
-                    <div className="toggle-field-row" key={propKey}>
-                      <div style={{ flex: 1 }}>
-                        <span className="toggle-field-label">
-                          {propKey}
-                          {tool.configSchema.required?.includes(propKey) && (
-                            <b className="req"> *</b>
-                          )}
-                        </span>
-                        {propDef.description && (
-                          <span className="toggle-field-desc">{propDef.description}</span>
-                        )}
-                      </div>
-                      <Toggle
-                        checked={Boolean(formConfig[propKey])}
-                        onChange={(v) =>
-                          setFormConfig((prev) => ({ ...prev, [propKey]: v }))
-                        }
-                        label={propKey}
-                      />
-                    </div>
-                  ) : (
-                    <Field
-                      key={propKey}
-                      label={propKey}
-                      required={tool.configSchema.required?.includes(propKey)}
-                      hint={propDef.description || `Data type: ${propDef.type}`}
-                    >
-                      {propDef.type === "number" ? (
-                        <input
-                          type="number"
-                          value={formConfig[propKey] ?? 0}
-                          onChange={(e) =>
-                            setFormConfig((prev) => ({
-                              ...prev,
-                              [propKey]: Number(e.target.value),
-                            }))
-                          }
-                        />
-                      ) : (
-                        <input
-                          value={formConfig[propKey] ?? ""}
-                          onChange={(e) =>
-                            setFormConfig((prev) => ({
-                              ...prev,
-                              [propKey]: e.target.value,
-                            }))
-                          }
-                          placeholder={`Enter ${propKey}...`}
-                        />
-                      )}
-                    </Field>
-                  )
-                )}
-
-                {!Object.keys(tool.configSchema.properties || {}).length && (
-                  <div className="empty">
-                    <b>No Config Parameters</b>
-                    <p>This tool does not define any configurable settings.</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Scope Precedence Notice */}
-              <div className="precedence-line">
-                <InfoIcon size={14} />
+          {/* Unavailable / Allowlist Flag Warning */}
+          {isFlaggedInAllowlist && (
+            <div
+              className="callout"
+              style={{
+                background: "#fffbeb",
+                borderColor: "#fde68a",
+                color: "#92400e",
+                margin: 0,
+              }}
+            >
+              <AlertCircle size={16} />
+              <div>
+                <strong style={{ display: "block", marginBottom: "2px" }}>
+                  Tool Unavailable & Referenced in Allowlist
+                </strong>
                 <span>
-                  Suggested Precedence: <b>Agent Override</b> &rarr; <b>Bot</b> &rarr; <b>Client Default</b> &rarr; <b>Platform</b>
+                  Referenced by Agent allowlist: <b>{tool.agentAllowlists.join(", ")}</b>. Remove this tool from Agent allowlists to avoid execution runtime errors.
                 </span>
               </div>
+            </div>
+          )}
 
-              {/* Modal Actions */}
-              <div className="modalactions" style={{ marginTop: "18px" }}>
-                <button className="btn secondary" onClick={onClose}>
-                  Cancel
-                </button>
-                <span className="grow" />
-                <button className="btn primary" onClick={handleSaveConfig}>
-                  <Check size={14} /> Save {selectedScope === "agent" ? "Agent Override" : "Client Config"}
-                </button>
+          {/* Input Schema Parameters Section */}
+          <div className="schema-section" style={{ margin: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+              <h4 style={{ margin: 0, fontSize: "11.5px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <Tag size={14} color="#f4513b" /> Input Parameters
+              </h4>
+              <span style={{ fontSize: "10px", color: "#64748b" }}>
+                {paramEntries.length} parameter{paramEntries.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+
+            {paramEntries.length > 0 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {paramEntries.map(([paramName, schema]) => {
+                  const isRequired = requiredList.includes(paramName);
+                  return (
+                    <div
+                      key={paramName}
+                      style={{
+                        background: "#fff",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: "7px",
+                        padding: "10px 12px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: schema.description ? "4px" : "0" }}>
+                        <code style={{ fontSize: "11px", fontWeight: 700, color: "#0f172a" }}>
+                          {paramName}
+                        </code>
+                        <span
+                          style={{
+                            fontSize: "9.5px",
+                            padding: "2px 6px",
+                            borderRadius: "4px",
+                            background: "#f1f5f9",
+                            color: "#475569",
+                            fontFamily: "monospace",
+                          }}
+                        >
+                          {schema.type || "string"}
+                        </span>
+                        {isRequired ? (
+                          <span
+                            style={{
+                              fontSize: "9px",
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              background: "#fee2e2",
+                              color: "#dc2626",
+                              fontWeight: 600,
+                            }}
+                          >
+                            Required
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: "9px",
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              background: "#f8fafc",
+                              color: "#94a3b8",
+                            }}
+                          >
+                            Optional
+                          </span>
+                        )}
+                      </div>
+                      {schema.description && (
+                        <p style={{ margin: 0, fontSize: "10.5px", color: "#64748b", lineHeight: "1.4" }}>
+                          {schema.description}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="empty" style={{ padding: "18px 12px" }}>
+                <p style={{ fontSize: "10.5px", color: "#8a92a0", margin: 0 }}>
+                  No input parameters defined for this tool.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Agent Allowlist (if any) */}
+          {tool.agentAllowlists && tool.agentAllowlists.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "10.5px" }}>
+              <span style={{ color: "#64748b" }}>Allowed Agents:</span>
+              <div style={{ display: "flex", gap: "5px", flexWrap: "wrap" }}>
+                {tool.agentAllowlists.map((ag) => (
+                  <span
+                    key={ag}
+                    style={{
+                      background: "#f3e8ff",
+                      color: "#6b21a8",
+                      padding: "2px 7px",
+                      borderRadius: "4px",
+                      fontSize: "9.5px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {ag}
+                  </span>
+                ))}
               </div>
             </div>
           )}
+
+          {/* Audit & Discovery Metadata */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              fontSize: "10px",
+              color: "#94a3b8",
+              paddingTop: "6px",
+              borderTop: "1px solid #f1f5f9",
+            }}
+          >
+            <span>Last Discovered: {tool.lastDiscoveredAt || "Recently"}</span>
+            <span>Schema v{tool.schemaVersion || "1.0.0"}</span>
+          </div>
+
+          {/* Modal Footer Action */}
+          <div className="modalactions" style={{ marginTop: "4px", paddingTop: "10px" }}>
+            <span className="grow" />
+            <button className="btn secondary" onClick={onClose}>
+              Close
+            </button>
+          </div>
         </div>
       </div>
     </div>
