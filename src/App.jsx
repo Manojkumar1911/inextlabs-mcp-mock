@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef, useEffect } from "react";
 import {
   Activity,
   AlertCircle,
@@ -13,12 +13,14 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleHelp,
+  Clock,
   Database,
   Ellipsis,
   Eye,
   FileText,
   Filter,
   Globe,
+  GripVertical,
   Info as InfoIcon,
   LayoutDashboard,
   Link2,
@@ -448,6 +450,95 @@ function Info({ label, value }) {
   );
 }
 
+function TransportSelect({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    function handleKeyDown(e) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [open]);
+
+  const options = [
+    { value: "streamableHttp", label: "Streamable HTTP", disabled: false },
+    { value: "sse", label: "Server-Sent Events (SSE)", disabled: true, tag: "Coming Soon" },
+    { value: "stdio", label: "STDIO", disabled: true, tag: "Coming Soon" },
+  ];
+
+  const currentOption = options.find((o) => o.value === value) || options[0];
+
+  return (
+    <div className={`custom-select-wrap ${open ? "is-open" : ""}`} ref={containerRef}>
+      <button
+        type="button"
+        className={`custom-select-trigger ${open ? "open" : ""}`}
+        onClick={() => setOpen((prev) => !prev)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span>{currentOption.label}</span>
+        <ChevronDown
+          style={{
+            width: 15,
+            height: 15,
+            color: "#7b8492",
+            transition: "transform .2s ease",
+            transform: open ? "rotate(180deg)" : "rotate(0deg)",
+            flexShrink: 0,
+          }}
+        />
+      </button>
+
+      {open && (
+        <div className="custom-select-menu" role="listbox">
+          {options.map((opt) => {
+            const isSelected = opt.value === value;
+            return (
+              <div
+                key={opt.value}
+                className={`custom-select-option ${opt.disabled ? "disabled" : ""} ${
+                  isSelected ? "selected" : ""
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!opt.disabled) {
+                    onChange(opt.value);
+                    setOpen(false);
+                  }
+                }}
+                role="option"
+                aria-selected={isSelected}
+                aria-disabled={opt.disabled}
+              >
+                <span>{opt.label}</span>
+                {opt.tag ? (
+                  <span className="coming-soon-tag">{opt.tag}</span>
+                ) : isSelected ? (
+                  <Check style={{ width: 14, height: 14, color: "#f4513b", flexShrink: 0 }} />
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Review({ title, rows, onEdit }) {
   return (
     <div className="review">
@@ -500,10 +591,27 @@ export default function App() {
       getCustomer: { includeInactive: false, maxResults: 100 },
       getProduct: { warehouseId: "WH-NORTH", maxResults: 50 },
     },
+    toolSchemasMap: {
+      getCustomer: [
+        { id: "f-1", name: "customerId", type: "Text", required: true, description: "Unique customer identifier" },
+        { id: "f-2", name: "includeInactive", type: "Yes/No", required: false, description: "Include inactive accounts" },
+        { id: "f-3", name: "maxResults", type: "Number", required: false, description: "Batch fetch limit" },
+      ],
+      getProduct: [
+        { id: "f-4", name: "productCode", type: "Text", required: true, description: "SKU or product code" },
+        { id: "f-5", name: "warehouseId", type: "Text", required: false, description: "Target warehouse code" },
+        { id: "f-6", name: "maxResults", type: "Number", required: false, description: "Batch fetch limit" },
+      ],
+      searchAccounts: [
+        { id: "f-7", name: "query", type: "Text", required: true, description: "Account name or domain search query" },
+        { id: "f-8", name: "maxResults", type: "Number", required: false, description: "Maximum accounts returned" },
+      ],
+    },
     expandedConfigTool: null,
   });
 
   const [form, setForm] = useState(blankServer());
+  const [expandedSchemaFieldIds, setExpandedSchemaFieldIds] = useState({});
   const [step, setStep] = useState(0);
   const [editing, setEditing] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -514,7 +622,23 @@ export default function App() {
   const [toolSearch, setToolSearch] = useState("");
   const [confirm, setConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [openMenuId, setOpenMenuId] = useState(null);
+
+  const openDeleteModal = (target = null) => {
+    setDeleteConfirmText("");
+    if (target) {
+      setDeleteTarget(target);
+    } else {
+      setConfirm(true);
+    }
+  };
+
+  const closeDeleteModal = () => {
+    setConfirm(false);
+    setDeleteTarget(null);
+    setDeleteConfirmText("");
+  };
 
   const toggleServerStatus = (id) => {
     setServers((prev) =>
@@ -598,11 +722,69 @@ export default function App() {
     s = s || selected;
     const serverTools = tools.filter((t) => t.mcpId === s.mcpId);
     const configsMap = {};
+    const schemasMap = {};
     const enabledIds = [];
     serverTools.forEach((t) => {
       const cfg = toolConfigs.find((c) => c.mcpToolId === t.mcpToolId);
       if (t.status === "active") enabledIds.push(t.name);
       configsMap[t.name] = cfg?.config ? { ...cfg.config } : {};
+
+      const existingParams = [];
+      let idx = 1;
+      if (t.inputSchema?.properties) {
+        Object.entries(t.inputSchema.properties).forEach(([propKey, propVal]) => {
+          const rawType = (propVal.type || "string").toLowerCase();
+          const mappedType =
+            rawType === "number" || rawType === "integer"
+              ? "Number"
+              : rawType === "boolean"
+              ? "Yes/No"
+              : rawType === "date"
+              ? "Date"
+              : "Text";
+          existingParams.push({
+            id: `p-${t.name}-${idx++}`,
+            name: propKey,
+            type: mappedType,
+            required: (t.inputSchema.required || []).includes(propKey),
+            description: propVal.description || "",
+          });
+        });
+      }
+      if (t.configSchema?.properties) {
+        Object.entries(t.configSchema.properties).forEach(([propKey, propVal]) => {
+          if (!existingParams.some((p) => p.name === propKey)) {
+            const rawType = (propVal.type || "string").toLowerCase();
+            const mappedType =
+              rawType === "number" || rawType === "integer"
+                ? "Number"
+                : rawType === "boolean"
+                ? "Yes/No"
+                : rawType === "date"
+                ? "Date"
+                : "Text";
+            existingParams.push({
+              id: `p-${t.name}-${idx++}`,
+              name: propKey,
+              type: mappedType,
+              required: (t.configSchema.required || []).includes(propKey),
+              description: propVal.description || "",
+            });
+          }
+        });
+      }
+      schemasMap[t.name] =
+        existingParams.length > 0
+          ? existingParams
+          : [
+              {
+                id: `p-${t.name}-1`,
+                name: "query",
+                type: "Text",
+                required: true,
+                description: "Search or query parameter",
+              },
+            ];
     });
 
     setForm({
@@ -617,6 +799,7 @@ export default function App() {
       authentication: { ...s.authentication },
       selectedToolIds: enabledIds.length > 0 ? enabledIds : serverTools.map((t) => t.name),
       toolConfigsMap: configsMap,
+      toolSchemasMap: schemasMap,
       expandedConfigTool: null,
     });
     setEditing(true);
@@ -682,9 +865,13 @@ export default function App() {
 
     setServers((old) => (editing ? old.map((x) => (x._id === editId ? s : x)) : [s, ...old]));
 
-    // Persist runtime configs for selected tools
+    // Persist runtime configs for all tools
     const newConfigs = [...toolConfigs];
-    (form.selectedToolIds || []).forEach((toolName) => {
+    const registeredToolNames =
+      Object.keys(form.toolSchemasMap || {}).length > 0
+        ? Object.keys(form.toolSchemasMap)
+        : ["getCustomer", "getProduct", "createInvoice"];
+    registeredToolNames.forEach((toolName) => {
       const toolRecord = tools.find((t) => t.name === toolName);
       const mcpToolId = toolRecord ? toolRecord.mcpToolId : `${s.mcpId}-${toolName.toLowerCase()}`;
       const existingIdx = newConfigs.findIndex(
@@ -789,26 +976,26 @@ export default function App() {
       <div className="body">
         {/* Sidebar */}
         <aside className={"sidebar " + (nav ? "open" : "")}>
-          <button className="navitem">
+          <button className="navitem" title="Dashboard">
             <LayoutDashboard />
             <span>Dashboard</span>
           </button>
           <div className="navlabel">
             PLATFORM <ChevronDown />
           </div>
-          <button className="navitem">
+          <button className="navitem" title="Client Account">
             <Users />
             <span>Client Account</span>
           </button>
-          <button className="navitem">
+          <button className="navitem" title="Client Teams">
             <Users />
             <span>Client Teams</span>
           </button>
-          <button className="navitem">
+          <button className="navitem" title="AI Resource Catalog">
             <Database />
             <span>AI Resource Catalog</span>
           </button>
-          <button className="navitem">
+          <button className="navitem" title="Infra Resources">
             <Server />
             <span>Infra Resources</span>
           </button>
@@ -816,6 +1003,7 @@ export default function App() {
             <button
               className={"navitem navparent " + (aiServicesOpen ? "open active" : "")}
               onClick={() => setAiServicesOpen(!aiServicesOpen)}
+              title="AI Services"
             >
               <Bot />
               <span>AI Services</span>
@@ -829,36 +1017,34 @@ export default function App() {
                     setPage("list");
                     setNotice("");
                   }}
+                  title="MCP Servers"
                 >
                   <Plug />
                   <span>MCP Servers</span>
                 </button>
-                <button className="navitem sub">
+                <button className="navitem sub" title="Agent Skills">
                   <Bot />
                   <span>Agent Skills</span>
                 </button>
-                <button className="navitem sub">
+                <button className="navitem sub" title="Model Registry">
                   <Zap />
                   <span>Model Registry</span>
                 </button>
-                <button className="navitem sub">
+                <button className="navitem sub" title="Docs AI">
                   <FileText />
                   <span>Docs AI</span>
                 </button>
-                <button className="navitem sub">
+                <button className="navitem sub" title="Insights AI">
                   <Activity />
                   <span>Insights AI</span>
                 </button>
               </div>
             )}
           </div>
-          <button className="navitem">
+          <button className="navitem" title="Activity Logs">
             <Activity />
             <span>Activity Logs</span>
           </button>
-          <div className="sidebottom">
-            <Settings /> Settings
-          </div>
         </aside>
 
         {/* Main Content */}
@@ -1014,106 +1200,94 @@ export default function App() {
 
                       return (
                         <div className="servercard" key={s._id}>
+                          {/* Header Line */}
                           <div className="serverline">
                             <div className="servericon">{s.name.slice(0, 2).toUpperCase()}</div>
                             <div className="serverlabel">
                               <button className="link" onClick={() => details(s._id)}>
                                 {s.name}
                               </button>
-                              <small>{s.mcpId}</small>
+                              <div className="servercard-sub">
+                                <ShieldCheck size={12} />
+                                <span>{s.mcpId}</span>
+                              </div>
                             </div>
-                            <Status value={s.status} />
-                            <div className="action-menu-wrap">
-                              <button
-                                className="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenMenuId(openMenuId === s._id ? null : s._id);
-                                }}
-                                title="Server options"
-                              >
-                                <Ellipsis />
-                              </button>
-                              {openMenuId === s._id && (
-                                <div className="action-dropdown" onClick={(e) => e.stopPropagation()}>
-                                  <button
-                                    className="action-dropdown-item"
-                                    onClick={() => {
-                                      setOpenMenuId(null);
-                                      details(s._id);
-                                    }}
-                                  >
-                                    <Eye size={14} /> View Details
-                                  </button>
-                                  <button
-                                    className="action-dropdown-item"
-                                    onClick={() => {
-                                      setOpenMenuId(null);
-                                      edit(s);
-                                    }}
-                                  >
-                                    <Pencil size={14} /> Edit Configuration
-                                  </button>
-                                  <button
-                                    className="action-dropdown-item"
-                                    onClick={() => toggleServerStatus(s._id)}
-                                  >
-                                    <Power size={14} />
-                                    {s.status === "active" ? "Deactivate Server" : "Activate Server"}
-                                  </button>
-                                  <div className="action-dropdown-sep" />
-                                  <button
-                                    className="action-dropdown-item danger"
-                                    onClick={() => {
-                                      setOpenMenuId(null);
-                                      setDeleteTarget(s);
-                                    }}
-                                  >
-                                    <Trash2 size={14} /> Delete Server
-                                  </button>
-                                </div>
-                              )}
-                            </div>
+                            <span className={`status-live-pill ${s.status === "active" ? "live" : "inactive"}`}>
+                              <span className="live-dot" />
+                              {s.status === "active" ? "LIVE" : "INACTIVE"}
+                            </span>
                           </div>
-                          <p>{s.description}</p>
-                          <div className="metadata">
-                            <span>
-                              <Users />
-                              {s.scope.type === "platform" ? (
-                                <Badge tone="purple">Platform Scope</Badge>
-                              ) : (
-                                <b>{clients[s.scope.clientId] || s.scope.clientId}</b>
-                              )}
-                            </span>
-                            <span>
-                              <Globe /> {pretty(s.connection.transport)}
-                            </span>
-                            <span>
-                              <Link2 />{" "}
-                              <span
-                                style={{
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  whiteSpace: "nowrap",
-                                  maxWidth: "220px",
-                                }}
-                              >
-                                {s.connection.url || "stdio (Local Process)"}
+
+                          {/* Description */}
+                          <p className="servercard-desc">{s.description || "—"}</p>
+
+                          {/* 3-Capsule Metadata Grid */}
+                          <div className="card-capsules-grid">
+                            <div className="card-capsule">
+                              <div className="card-capsule-head">
+                                <Globe size={11} />
+                                <span>Transport</span>
+                              </div>
+                              <span className="card-capsule-value" title={pretty(s.connection.transport)}>
+                                {pretty(s.connection.transport)}
                               </span>
-                            </span>
+                            </div>
+
+                            <div className="card-capsule">
+                              <div className="card-capsule-head">
+                                <Wrench size={11} />
+                                <span>Tools</span>
+                              </div>
+                              <span className="card-capsule-value">
+                                {serverTools.length} {serverTools.length === 1 ? "tool" : "tools"}
+                                {hasUnavailable && (
+                                  <span style={{ color: "#b42318", marginLeft: "4px" }} title="Has unavailable tools">⚠️</span>
+                                )}
+                              </span>
+                            </div>
+
+                            <div className="card-capsule">
+                              <div className="card-capsule-head">
+                                <Users size={11} />
+                                <span>Scope</span>
+                              </div>
+                              <span
+                                className="card-capsule-value"
+                                title={s.scope.type === "platform" ? "Platform Scope" : (clients[s.scope.clientId] || s.scope.clientId)}
+                              >
+                                {s.scope.type === "platform"
+                                  ? "Platform"
+                                  : (clients[s.scope.clientId] || s.scope.clientId)}
+                              </span>
+                            </div>
                           </div>
-                          <div className="cardfoot">
-                            <span>
-                              <Wrench /> {serverTools.length} discovered tools
-                              {hasUnavailable && (
-                                <span style={{ color: "#b42318", marginLeft: "4px" }} title="Has unavailable tools">
-                                  (⚠️ has unavailable)
-                                </span>
-                              )}
-                            </span>
-                            <span>v{s.version}</span>
-                            <button className="icon" onClick={() => details(s._id)}>
-                              <ChevronRight />
+
+                          {/* Timestamp */}
+                          <div className="card-timestamp">
+                            <Clock size={12} />
+                            <span>Last synced: {s.lastDiscoveredAt || s.updatedAt || s.createdAt}</span>
+                          </div>
+
+                          {/* Actions: Configure (flex: 1) and Delete Button */}
+                          <div className="card-actions-row">
+                            <button
+                              type="button"
+                              className="card-configure-btn"
+                              onClick={() => details(s._id)}
+                            >
+                              <Settings size={14} />
+                              <span>Configure</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="card-delete-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openDeleteModal(s);
+                              }}
+                              title="Delete Server"
+                            >
+                              <Trash2 size={14} />
                             </button>
                           </div>
                         </div>
@@ -1215,7 +1389,7 @@ export default function App() {
                                         className="action-dropdown-item danger"
                                         onClick={() => {
                                           setOpenMenuId(null);
-                                          setDeleteTarget(s);
+                                          openDeleteModal(s);
                                         }}
                                       >
                                         <Trash2 size={14} /> Delete Server
@@ -1239,10 +1413,6 @@ export default function App() {
                     <p>Try changing your search or filters.</p>
                   </div>
                 )}
-                <div className="footnote">
-                  Showing {filtered.length} of {servers.length} MCP servers{" "}
-                  <span>Interactive prototype · MCP Registry</span>
-                </div>
               </div>
             </section>
           )}
@@ -1261,22 +1431,16 @@ export default function App() {
               <div className="pagehead detailhead">
                 <div className="servericon big">{selected.name.slice(0, 2).toUpperCase()}</div>
                 <div className="grow">
-                  <h1>{selected.name}</h1>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "4px" }}>
+                    <h1 style={{ margin: 0 }}>{selected.name}</h1>
+                    <Status value={selected.status} />
+                  </div>
                   <p>
                     {selected.mcpId} · Version {selected.version} ·{" "}
                     {selected.scope.type === "platform"
                       ? "Platform Shared Scope"
                       : `Client: ${clients[selected.scope.clientId] || selected.scope.clientId}`}
                   </p>
-                  <div className="badges">
-                    <Status value={selected.status} />
-                    {selected.scope.type === "platform" ? (
-                      <Badge tone="purple">Platform Scope</Badge>
-                    ) : (
-                      <Badge tone="info">Tenant: {clients[selected.scope.clientId]}</Badge>
-                    )}
-                    <Badge tone="neutral">{selectedServerTools.length} Discovered Tools</Badge>
-                  </div>
                 </div>
                 <button
                   className={"btn " + (selected.status === "active" ? "secondary" : "primary")}
@@ -1291,7 +1455,7 @@ export default function App() {
                 </button>
                 <button
                   className="btn dangeroutline"
-                  onClick={() => setDeleteTarget(selected)}
+                  onClick={() => openDeleteModal(selected)}
                   title="Delete Server"
                 >
                   <Trash2 size={14} />
@@ -1340,8 +1504,6 @@ export default function App() {
                             value={clients[selected.scope.clientId] || selected.scope.clientId}
                           />
                         )}
-                        <Info label="Version" value={selected.version} />
-                        <Info label="Status" value={<Status value={selected.status} />} />
                         <Info label="Last Discovered" value={selected.lastDiscoveredAt || "Never"} />
                         <Info label="Created at" value={selected.createdAt} />
                         <Info label="Updated at" value={selected.updatedAt} />
@@ -1562,25 +1724,21 @@ export default function App() {
                         Manage endpoint connection settings and authentication type.
                       </p>
                       <Field label="Transport">
-                        <select
+                        <TransportSelect
                           value={selected.connection.transport}
-                          onChange={(e) =>
+                          onChange={(val) =>
                             setServers((old) =>
                               old.map((s) =>
                                 s._id === selectedId
                                   ? {
                                       ...s,
-                                      connection: { ...s.connection, transport: e.target.value },
+                                      connection: { ...s.connection, transport: val },
                                     }
                                   : s
                               )
                             )
                           }
-                        >
-                          <option value="streamableHttp">Streamable HTTP</option>
-                          <option value="sse">Server-Sent Events (SSE)</option>
-                          <option value="stdio">STDIO</option>
-                        </select>
+                        />
                       </Field>
 
                       {selected.connection.transport !== "stdio" && (
@@ -1677,7 +1835,7 @@ export default function App() {
                         <p className="muted">
                           Permanently remove this MCP server registration and its tool discovery links.
                         </p>
-                        <button className="btn dangeroutline" onClick={() => setConfirm(true)}>
+                        <button className="btn dangeroutline" onClick={() => openDeleteModal()}>
                           Delete MCP Server
                         </button>
                       </div>
@@ -1819,19 +1977,15 @@ export default function App() {
                       <div className="subpanel">
                         <h3>Connection Settings</h3>
                         <Field label="Transport" required>
-                          <select
+                          <TransportSelect
                             value={form.connection.transport}
-                            onChange={(e) =>
+                            onChange={(val) =>
                               setForm({
                                 ...form,
-                                connection: { ...form.connection, transport: e.target.value },
+                                connection: { ...form.connection, transport: val },
                               })
                             }
-                          >
-                            <option value="streamableHttp">Streamable HTTP</option>
-                            <option value="sse">Server-Sent Events (SSE)</option>
-                            <option value="stdio">STDIO</option>
-                          </select>
+                          />
                         </Field>
 
                         {form.connection.transport !== "stdio" && (
@@ -1919,23 +2073,81 @@ export default function App() {
                           },
                         ];
 
-                    const selectedIds = form.selectedToolIds || [];
-                    const toggleToolSelection = (name) => {
-                      const isSel = selectedIds.includes(name);
-                      const updated = isSel
-                        ? selectedIds.filter((id) => id !== name)
-                        : [...selectedIds, name];
-                      setForm((f) => ({ ...f, selectedToolIds: updated }));
+                    const getToolParams = (toolName, toolObj) => {
+                      if (form.toolSchemasMap && form.toolSchemasMap[toolName]) {
+                        return form.toolSchemasMap[toolName];
+                      }
+                      const params = [];
+                      let idx = 1;
+                      if (toolObj?.inputSchema?.properties) {
+                        Object.entries(toolObj.inputSchema.properties).forEach(([k, v]) => {
+                          const rawType = (v.type || "string").toLowerCase();
+                          const mappedType =
+                            rawType === "number" || rawType === "integer"
+                              ? "Number"
+                              : rawType === "boolean"
+                              ? "Yes/No"
+                              : rawType === "date"
+                              ? "Date"
+                              : "Text";
+                          params.push({
+                            id: `p-${toolName}-${idx++}`,
+                            name: k,
+                            type: mappedType,
+                            required: (toolObj.inputSchema.required || []).includes(k),
+                            description: v.description || "",
+                          });
+                        });
+                      }
+                      if (toolObj?.configSchema?.properties) {
+                        Object.entries(toolObj.configSchema.properties).forEach(([k, v]) => {
+                          if (!params.some((p) => p.name === k)) {
+                            const rawType = (v.type || "string").toLowerCase();
+                            const mappedType =
+                              rawType === "number" || rawType === "integer"
+                                ? "Number"
+                                : rawType === "boolean"
+                                ? "Yes/No"
+                                : rawType === "date"
+                                ? "Date"
+                                : "Text";
+                            params.push({
+                              id: `p-${toolName}-${idx++}`,
+                              name: k,
+                              type: mappedType,
+                              required: (toolObj.configSchema.required || []).includes(k),
+                              description: v.description || "",
+                            });
+                          }
+                        });
+                      }
+                      return params.length > 0
+                        ? params
+                        : [
+                            {
+                              id: `p-${toolName}-1`,
+                              name: "query",
+                              type: "Text",
+                              required: true,
+                              description: "Search or query parameter",
+                            },
+                          ];
                     };
 
-                    const selectAllTools = () => {
-                      setForm((f) => ({
-                        ...f,
-                        selectedToolIds:
-                          selectedIds.length === previewTools.length
-                            ? []
-                            : previewTools.map((t) => t.name),
-                      }));
+                    const updateToolParams = (toolName, updater) => {
+                      setForm((f) => {
+                        const current =
+                          f.toolSchemasMap?.[toolName] ||
+                          getToolParams(toolName, previewTools.find((x) => x.name === toolName));
+                        const nextParams = typeof updater === "function" ? updater(current) : updater;
+                        return {
+                          ...f,
+                          toolSchemasMap: {
+                            ...(f.toolSchemasMap || {}),
+                            [toolName]: nextParams,
+                          },
+                        };
+                      });
                     };
 
                     return (
@@ -1943,7 +2155,7 @@ export default function App() {
                         <div className="stepheading">
                           <h2>Tools & Discovery</h2>
                           <p>
-                            Tools are discovered automatically from the MCP server endpoint. Select which tools to activate and configure their initial runtime settings.
+                            Tools are discovered automatically from the MCP server endpoint. Review and customize their parameter schemas below.
                           </p>
                         </div>
 
@@ -1956,39 +2168,23 @@ export default function App() {
 
                         <div className="toolstephead">
                           <Badge tone="info">
-                            {selectedIds.length} of {previewTools.length} Tools Selected
+                            {previewTools.length} Discovered Tools
                           </Badge>
                           <span className="muted">
-                            Select tools to activate for this {form.scopeType === "platform" ? "platform" : "client"}
+                            All advertised tools are automatically registered with this MCP server
                           </span>
-                          <button
-                            type="button"
-                            className="btn subtle small"
-                            onClick={selectAllTools}
-                          >
-                            {selectedIds.length === previewTools.length ? "Deselect All" : "Select All"}
-                          </button>
                         </div>
 
                         {previewTools.map((t) => {
-                          const isSelected = selectedIds.includes(t.name);
                           const isConfigOpen = form.expandedConfigTool === t.name;
-                          const currentConfig = form.toolConfigsMap?.[t.name] || {};
+                          const toolParams = getToolParams(t.name, t);
 
                           return (
                             <div
-                              className={"wizardtool" + (isSelected ? " selected" : "")}
+                              className="wizardtool"
                               key={t.mcpToolId}
                             >
                               <div className="wizardtoolhead">
-                                <button
-                                  type="button"
-                                  className={"tool-check-btn " + (isSelected ? "checked" : "")}
-                                  onClick={() => toggleToolSelection(t.name)}
-                                  title={isSelected ? "Deselect tool" : "Select tool"}
-                                >
-                                  <Check />
-                                </button>
                                 <div className="toolicon">
                                   <Wrench />
                                 </div>
@@ -1996,143 +2192,204 @@ export default function App() {
                                   <b>{t.name}</b>
                                   <small>ID: {t.mcpToolId} · {t.description}</small>
                                 </div>
-                                {isSelected && (
-                                  <Badge tone="success">Selected</Badge>
-                                )}
-                                {isSelected && (
-                                  <button
-                                    type="button"
-                                    className="btn secondary small"
-                                    onClick={() =>
-                                      setForm((f) => ({
-                                        ...f,
-                                        expandedConfigTool:
-                                          f.expandedConfigTool === t.name ? null : t.name,
-                                      }))
-                                    }
-                                  >
-                                    <Settings size={13} />{" "}
-                                    {isConfigOpen ? "Close Config" : "Configure Settings"}
-                                  </button>
-                                )}
+                                <button
+                                  type="button"
+                                  className="btn secondary small"
+                                  onClick={() =>
+                                    setForm((f) => ({
+                                      ...f,
+                                      expandedConfigTool:
+                                        f.expandedConfigTool === t.name ? null : t.name,
+                                    }))
+                                  }
+                                >
+                                  <FileText size={13} />{" "}
+                                  {isConfigOpen ? "Close Schema" : "Define Schema"}
+                                </button>
                               </div>
 
-                              <div className="schemaline">
-                                <span>
-                                  Input Parameters:{" "}
-                                  <b>{Object.keys(t.inputSchema.properties || {}).join(", ") || "none"}</b>
-                                </span>
-                                <span style={{ marginLeft: "12px" }}>
-                                  Configurable:{" "}
-                                  <b>{Object.keys(t.configSchema.properties || {}).join(", ") || "none"}</b>
-                                </span>
-                                {isSelected && Object.keys(currentConfig).length > 0 && (
-                                  <span style={{ marginLeft: "auto", color: "#166534", fontWeight: 600 }}>
-                                    ✓ Configured: {Object.entries(currentConfig).map(([k, v]) => `${k}: ${String(v)}`).join(", ")}
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Inline Expandable Configuration Panel */}
-                              {isSelected && isConfigOpen && (
-                                <div className="wizardtool-config-panel">
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                      alignItems: "center",
-                                      marginBottom: "10px",
-                                    }}
-                                  >
-                                    <b style={{ fontSize: "11px", color: "#1f2937" }}>
-                                      Runtime Configuration (
-                                      {form.scopeType === "platform"
-                                        ? "Platform Default"
-                                        : clients[form.clientId] || "Client"}
-                                      )
-                                    </b>
-                                    <small className="muted">
-                                      Customized settings for this scope
-                                    </small>
+                              {/* Inline Expandable Schema Builder Panel (DocsAI inspired) */}
+                              {isConfigOpen && (
+                                <div className="schema-builder-panel">
+                                  {/* Header */}
+                                  <div className="schema-builder-head">
+                                    <div>
+                                      <h4>Define parameter schema</h4>
+                                      <p>Define the fields and parameters for this tool</p>
+                                    </div>
+                                    <div className="schema-builder-actions">
+                                      {toolParams.length > 0 && (
+                                        <button
+                                          type="button"
+                                          className="schema-clear-btn"
+                                          title="Clear all parameters"
+                                          onClick={() => updateToolParams(t.name, [])}
+                                        >
+                                          <Trash2 size={14} />
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        className="btn primary small"
+                                        onClick={() =>
+                                          updateToolParams(t.name, (prev) => [
+                                            ...prev,
+                                            {
+                                              id: `p-${Date.now()}`,
+                                              name: "",
+                                              type: "Text",
+                                              required: false,
+                                              description: "",
+                                            },
+                                          ])
+                                        }
+                                      >
+                                        <Plus size={13} /> Add Parameter
+                                      </button>
+                                    </div>
                                   </div>
 
-                                  <div className="formgrid">
-                                    {Object.entries(t.configSchema.properties || {}).map(
-                                      ([propKey, propDef]) =>
-                                        propDef.type === "boolean" ? (
-                                          <div className="toggle-field-row" key={propKey}>
-                                            <div style={{ flex: 1 }}>
-                                              <span className="toggle-field-label">
-                                                {propKey}
-                                              </span>
-                                              {propDef.description && (
-                                                <span className="toggle-field-desc">
-                                                  {propDef.description}
-                                                </span>
-                                              )}
-                                            </div>
-                                            <Toggle
-                                              checked={Boolean(currentConfig[propKey])}
-                                              onChange={(val) => {
-                                                setForm((f) => ({
-                                                  ...f,
-                                                  toolConfigsMap: {
-                                                    ...f.toolConfigsMap,
-                                                    [t.name]: {
-                                                      ...(f.toolConfigsMap?.[t.name] || {}),
-                                                      [propKey]: val,
-                                                    },
-                                                  },
-                                                }));
-                                              }}
-                                              label={propKey}
-                                            />
-                                          </div>
-                                        ) : (
-                                          <Field
-                                            key={propKey}
-                                            label={propKey}
-                                            hint={propDef.description || `Type: ${propDef.type}`}
+                                  {/* Parameter Rows List */}
+                                  <div className="schema-fields-list">
+                                    {toolParams.length === 0 ? (
+                                      <div className="schema-empty-state">
+                                        <p>No parameters defined yet for this tool.</p>
+                                        <button
+                                          type="button"
+                                          className="btn secondary small"
+                                          style={{ marginTop: "8px" }}
+                                          onClick={() =>
+                                            updateToolParams(t.name, [
+                                              {
+                                                id: `p-${Date.now()}`,
+                                                name: "query",
+                                                type: "Text",
+                                                required: true,
+                                                description: "Search or query parameter",
+                                              },
+                                            ])
+                                          }
+                                        >
+                                          <Plus size={13} /> Add First Parameter
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      toolParams.map((param, pIdx) => {
+                                        const isRowExpanded = Boolean(expandedSchemaFieldIds[param.id]);
+                                        return (
+                                          <div
+                                            key={param.id || pIdx}
+                                            className={`schema-field-card ${isRowExpanded ? "expanded" : ""}`}
                                           >
-                                            {propDef.type === "number" ? (
+                                            {/* Row Header */}
+                                            <div className="schema-field-row">
+                                              <div className="schema-drag-handle" title="Drag to reorder">
+                                                <GripVertical size={14} />
+                                              </div>
+                                              <div className="schema-idx-pill">{pIdx + 1}</div>
                                               <input
-                                                type="number"
-                                                value={currentConfig[propKey] ?? 50}
-                                                onChange={(e) => {
-                                                  const val = Number(e.target.value);
-                                                  setForm((f) => ({
-                                                    ...f,
-                                                    toolConfigsMap: {
-                                                      ...f.toolConfigsMap,
-                                                      [t.name]: {
-                                                        ...(f.toolConfigsMap?.[t.name] || {}),
-                                                        [propKey]: val,
-                                                      },
-                                                    },
-                                                  }));
-                                                }}
-                                              />
-                                            ) : (
-                                              <input
-                                                value={currentConfig[propKey] ?? ""}
+                                                type="text"
+                                                className="schema-field-name-input"
+                                                value={param.name}
+                                                placeholder="Parameter Name"
                                                 onChange={(e) => {
                                                   const val = e.target.value;
-                                                  setForm((f) => ({
-                                                    ...f,
-                                                    toolConfigsMap: {
-                                                      ...f.toolConfigsMap,
-                                                      [t.name]: {
-                                                        ...(f.toolConfigsMap?.[t.name] || {}),
-                                                        [propKey]: val,
-                                                      },
-                                                    },
-                                                  }));
+                                                  updateToolParams(t.name, (prev) =>
+                                                    prev.map((p, i) => (i === pIdx ? { ...p, name: val } : p))
+                                                  );
                                                 }}
-                                                placeholder={`Enter ${propKey}...`}
                                               />
+
+                                              {/* Type Dropdown */}
+                                              <div className="schema-type-select-wrap">
+                                                <select
+                                                  className="schema-type-select"
+                                                  value={param.type}
+                                                  onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    updateToolParams(t.name, (prev) =>
+                                                      prev.map((p, i) => (i === pIdx ? { ...p, type: val } : p))
+                                                    );
+                                                  }}
+                                                >
+                                                  <option value="Text">T Text</option>
+                                                  <option value="Number"># Number</option>
+                                                  <option value="Date">📅 Date</option>
+                                                  <option value="Yes/No">👁 Yes/No</option>
+                                                </select>
+                                              </div>
+
+                                              {/* Required Checkbox */}
+                                              <label className="schema-required-label">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={Boolean(param.required)}
+                                                  onChange={() => {
+                                                    updateToolParams(t.name, (prev) =>
+                                                      prev.map((p, i) =>
+                                                        i === pIdx ? { ...p, required: !p.required } : p
+                                                      )
+                                                    );
+                                                  }}
+                                                />
+                                                <span>Required</span>
+                                              </label>
+
+                                              {/* Delete parameter */}
+                                              <button
+                                                type="button"
+                                                className="schema-delete-btn"
+                                                title="Delete parameter"
+                                                onClick={() =>
+                                                  updateToolParams(t.name, (prev) =>
+                                                    prev.filter((_, i) => i !== pIdx)
+                                                  )
+                                                }
+                                              >
+                                                <Trash2 size={15} />
+                                              </button>
+
+                                              {/* Expand / Collapse Chevron */}
+                                              <button
+                                                type="button"
+                                                className="schema-expand-btn"
+                                                title={isRowExpanded ? "Collapse" : "Expand instructions"}
+                                                onClick={() =>
+                                                  setExpandedSchemaFieldIds((prev) => ({
+                                                    ...prev,
+                                                    [param.id]: !prev[param.id],
+                                                  }))
+                                                }
+                                              >
+                                                {isRowExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                                              </button>
+                                            </div>
+
+                                            {/* Inline Expanded Drawer (Instructions only, no constraints) */}
+                                            {isRowExpanded && (
+                                              <div className="schema-field-expanded">
+                                                <div className="schema-instruction-group">
+                                                  <label className="schema-instruction-label">
+                                                    PARAMETER INSTRUCTIONS *
+                                                  </label>
+                                                  <textarea
+                                                    rows="2"
+                                                    className="schema-instruction-input"
+                                                    value={param.description || ""}
+                                                    placeholder={`Enter instructions or description for ${param.name || "this parameter"}...`}
+                                                    onChange={(e) => {
+                                                      const val = e.target.value;
+                                                      updateToolParams(t.name, (prev) =>
+                                                        prev.map((p, i) => (i === pIdx ? { ...p, description: val } : p))
+                                                      );
+                                                    }}
+                                                  />
+                                                </div>
+                                              </div>
                                             )}
-                                          </Field>
-                                        )
+                                          </div>
+                                        );
+                                      })
                                     )}
                                   </div>
                                 </div>
@@ -2182,22 +2439,19 @@ export default function App() {
                         title="Tools & Discovery"
                         rows={[
                           [
-                            "Selected Tools",
-                            `${(form.selectedToolIds || []).length} tools enabled`,
+                            "Discovered Tools",
+                            `${Object.keys(form.toolSchemasMap || {}).length || 3} tools registered`,
                           ],
                           [
-                            "Configured Settings",
-                            (form.selectedToolIds || []).length > 0
-                              ? (form.selectedToolIds || [])
-                                  .map((n) => {
-                                    const cfg = form.toolConfigsMap?.[n] || {};
-                                    const pairs = Object.entries(cfg)
-                                      .map(([k, v]) => `${k}: ${v}`)
-                                      .join(", ");
-                                    return `${n} (${pairs || "default"})`;
+                            "Defined Tool Schemas",
+                            Object.keys(form.toolSchemasMap || {}).length > 0
+                              ? Object.entries(form.toolSchemasMap)
+                                  .map(([n, params]) => {
+                                    const pNames = params.map((p) => p.name).filter(Boolean).join(", ");
+                                    return `${n} (${pNames || "standard parameters"})`;
                                   })
                                   .join(" · ")
-                              : "No tools selected",
+                              : "Standard discovered schemas",
                           ],
                           ["Discovery Handshake", "Automatic endpoint discovery enabled"],
                         ]}
@@ -2239,11 +2493,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* Footer */}
-      <footer className="footer">
-        iNextLabs Management Portal · AI Services / MCP Servers
-      </footer>
-
       {/* MODAL 1: TOOL DETAILS & RUNTIME CONFIGURE MODAL (MAJOR UPDATE) */}
       {selectedTool && (
         <ToolModal
@@ -2259,47 +2508,123 @@ export default function App() {
         />
       )}
 
-      {/* MODAL 2: DELETE CONFIRMATION */}
-      {(confirm || deleteTarget) && (
-        <div className="backdrop" onClick={() => { setConfirm(false); setDeleteTarget(null); }}>
-          <div className="confirm" onClick={(e) => e.stopPropagation()}>
-            <div className="dangerico">
-              <AlertCircle />
-            </div>
-            <h2>Delete MCP Server?</h2>
-            <p>
-              This removes <b>{(deleteTarget || selected)?.name}</b> from the local registry.
-            </p>
-            <div className="confirmactions">
-              <button
-                className="btn secondary"
-                onClick={() => {
-                  setConfirm(false);
-                  setDeleteTarget(null);
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                className="btn danger"
-                onClick={() => {
-                  const targetId = deleteTarget ? deleteTarget._id : selectedId;
-                  const targetName = (deleteTarget || selected)?.name;
-                  setServers((old) => old.filter((s) => s._id !== targetId));
-                  setConfirm(false);
-                  setDeleteTarget(null);
-                  if (page === "details" && selectedId === targetId) {
-                    setPage("list");
-                  }
-                  setNotice(`MCP Server "${targetName}" removed from registry.`);
-                }}
-              >
-                Delete Server
-              </button>
+      {/* MODAL 2: DELETE CONFIRMATION (DocsAI Inspired) */}
+      {(confirm || deleteTarget) && (() => {
+        const targetServer = deleteTarget || selected;
+        const targetId = targetServer?._id;
+        const targetName = targetServer?.name || "MCP Server";
+        const targetInitials = (targetName || "MC")
+          .split(" ")
+          .map((w) => w[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase();
+        const serverToolCount = tools.filter((t) => t.mcpId === targetServer?.mcpId).length || 3;
+        const scopeDesc =
+          targetServer?.scope?.type === "platform"
+            ? "Platform Scope (Shared)"
+            : `Client: ${clients[targetServer?.scope?.clientId] || "iTrade"}`;
+        const isMatch = deleteConfirmText.trim().toLowerCase() === targetName.trim().toLowerCase();
+
+        return (
+          <div className="backdrop" onClick={closeDeleteModal}>
+            <div className="delete-modal-wrap" onClick={(e) => e.stopPropagation()}>
+              {/* Header */}
+              <div className="delete-modal-top">
+                <div className="delete-modal-top-left">
+                  <div className="delete-modal-icon-badge">
+                    <AlertTriangle size={19} />
+                  </div>
+                  <div>
+                    <h3 className="delete-modal-title">Delete MCP Server</h3>
+                    <p className="delete-modal-subtitle">Verify deletion request</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="delete-modal-close-btn"
+                  onClick={closeDeleteModal}
+                  title="Close"
+                >
+                  <X size={17} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="delete-modal-body">
+                {/* Target Entity Card */}
+                <div className="delete-server-card">
+                  <div className="delete-server-avatar">{targetInitials}</div>
+                  <div className="delete-server-info">
+                    <span className="delete-server-name">{targetName}</span>
+                    <span className="delete-server-sub">
+                      {targetServer?.mcpId} · {scopeDesc}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Warning Callout Box */}
+                <div className="delete-warning-box">
+                  <div className="delete-warning-header">
+                    <AlertTriangle size={15} />
+                    <span>This action cannot be undone.</span>
+                  </div>
+                  <p className="delete-warning-lead">Deleting this MCP server will:</p>
+                  <ul className="delete-warning-list">
+                    <li>Disconnect all agents and client workflows routed through this endpoint</li>
+                    <li>Remove all {serverToolCount} discovered tool registrations and parameter schemas</li>
+                    <li>Permanently erase stored connection URL and authentication tokens</li>
+                  </ul>
+                </div>
+
+                {/* Type to Confirm Field */}
+                <div>
+                  <label className="delete-confirm-prompt">
+                    To confirm, type <span className="delete-confirm-code">{targetName}</span>
+                  </label>
+                  <input
+                    type="text"
+                    className="delete-confirm-input"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Actions Footer */}
+              <div className="delete-modal-actions">
+                <button
+                  type="button"
+                  className="btn secondary"
+                  onClick={closeDeleteModal}
+                >
+                  Back
+                </button>
+                <button
+                  type="button"
+                  className="btn danger"
+                  disabled={!isMatch}
+                  style={{
+                    opacity: isMatch ? 1 : 0.45,
+                    cursor: isMatch ? "pointer" : "not-allowed",
+                  }}
+                  onClick={() => {
+                    if (!isMatch) return;
+                    setServers((old) => old.filter((s) => s._id !== targetId));
+                    closeDeleteModal();
+                    if (page === "details" && selectedId === targetId) {
+                      setPage("list");
+                    }
+                    setNotice(`MCP Server "${targetName}" removed from registry.`);
+                  }}
+                >
+                  Delete this server
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
