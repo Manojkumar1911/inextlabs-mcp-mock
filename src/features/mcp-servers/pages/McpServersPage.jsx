@@ -12,6 +12,7 @@ import { ServerDetailsContainer } from "../components/server-details/ServerDetai
 import { WizardContainer } from "../components/server-wizard/WizardContainer";
 import { ToolModal } from "../components/tool-inspector/ToolModal";
 import { DeleteConfirmationModal } from "../../../shared/components/common/DeleteConfirmationModal";
+import { AccessManagementContainer } from "../../access-management/AccessManagementContainer";
 
 export function McpServersPage() {
   const [servers, setServers] = useState(seedServers);
@@ -30,6 +31,8 @@ export function McpServersPage() {
   const [view] = useState("cards");
 
   const [nav, setNav] = useState(false);
+  const [activeNav, setActiveNav] = useState("roles"); // "roles" | "permissions" | "assignments" | "mcp-servers"
+  const [accessManagementOpen, setAccessManagementOpen] = useState(true);
   const [aiServicesOpen, setAiServicesOpen] = useState(true);
   const [notice, setNotice] = useState("");
 
@@ -400,16 +403,24 @@ export function McpServersPage() {
           navOpen={nav}
           aiServicesOpen={aiServicesOpen}
           setAiServicesOpen={setAiServicesOpen}
-          onSelectMcpServers={() => {
-            setPage("list");
-            setNotice("");
+          accessManagementOpen={accessManagementOpen}
+          setAccessManagementOpen={setAccessManagementOpen}
+          activeView={activeNav}
+          onNavigate={(target) => {
+            setActiveNav(target);
+            if (target === "mcp-servers") {
+              setPage("list");
+              setNotice("");
+            }
           }}
         />
 
         {/* Main Content Area */}
         <main className="main">
-          {/* Breadcrumb matching previous commit exactly */}
-          <div className="crumb">
+          {activeNav === "mcp-servers" ? (
+            <>
+              {/* Breadcrumb matching previous commit exactly */}
+              <div className="crumb">
             Home <ChevronRight /> AI Services <ChevronRight /> MCP Servers <ChevronRight />{" "}
             <b>
               {page === "list"
@@ -504,24 +515,31 @@ export function McpServersPage() {
             />
           )}
 
-          {page === "wizard" && (
-            <WizardContainer
-              editing={editing}
-              step={step}
-              setStep={setStep}
-              steps={steps}
-              form={form}
-              setForm={setForm}
-              connectionVerified={connectionVerified}
-              setConnectionVerified={setConnectionVerified}
-              isTesting={isTesting}
-              testConnection={testConnection}
-              selectedServerTools={selectedServerTools}
-              expandedSchemaFieldIds={expandedSchemaFieldIds}
-              setExpandedSchemaFieldIds={setExpandedSchemaFieldIds}
-              onCancel={() => setPage(editing ? "details" : "list")}
-              onNext={next}
-              onSave={save}
+              {page === "wizard" && (
+                <WizardContainer
+                  editing={editing}
+                  step={step}
+                  setStep={setStep}
+                  steps={steps}
+                  form={form}
+                  setForm={setForm}
+                  connectionVerified={connectionVerified}
+                  setConnectionVerified={setConnectionVerified}
+                  isTesting={isTesting}
+                  testConnection={testConnection}
+                  selectedServerTools={selectedServerTools}
+                  expandedSchemaFieldIds={expandedSchemaFieldIds}
+                  setExpandedSchemaFieldIds={setExpandedSchemaFieldIds}
+                  onCancel={() => setPage(editing ? "details" : "list")}
+                  onNext={next}
+                  onSave={save}
+                />
+              )}
+            </>
+          ) : (
+            <AccessManagementContainer
+              page={activeNav}
+              onPage={setActiveNav}
             />
           )}
         </main>
